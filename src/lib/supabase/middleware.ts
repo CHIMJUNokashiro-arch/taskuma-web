@@ -35,7 +35,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // 未ログインユーザーを/loginにリダイレクト
-  const publicPaths = ["/", "/login"];
+  const publicPaths = ["/", "/login", "/api/google/callback"];
   const isPublicPath = publicPaths.includes(request.nextUrl.pathname);
 
   if (!user && !isPublicPath) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Section } from "@/lib/types";
 
@@ -13,7 +13,20 @@ export default function SettingsView({
   const [newSectionName, setNewSectionName] = useState("");
   const [generatingRoutines, setGeneratingRoutines] = useState(false);
   const [routineMessage, setRoutineMessage] = useState<string | null>(null);
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [googleEmail, setGoogleEmail] = useState<string | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
   const supabase = createClient();
+
+  useEffect(() => {
+    fetch("/api/google/status")
+      .then((res) => res.json())
+      .then((data) => {
+        setGoogleConnected(data.connected);
+        setGoogleEmail(data.email);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleAddSection = useCallback(async () => {
     if (!newSectionName.trim()) return;
@@ -70,9 +83,56 @@ export default function SettingsView({
     setGeneratingRoutines(false);
   }, []);
 
+  const handleDisconnectGoogle = useCallback(async () => {
+    setDisconnecting(true);
+    try {
+      await fetch("/api/google/disconnect", { method: "POST" });
+      setGoogleConnected(false);
+      setGoogleEmail(null);
+    } catch {
+      // ignore
+    }
+    setDisconnecting(false);
+  }, []);
+
   return (
     <div className="mx-auto max-w-3xl p-4 sm:p-6">
       <h2 className="mb-6 text-xl font-bold text-white">設定</h2>
+
+      {/* Googleカレンダー連携 */}
+      <div className="mb-8 rounded-xl bg-navy-800 p-6">
+        <h3 className="mb-4 text-lg font-semibold text-white">
+          Googleカレンダー連携
+        </h3>
+        <p className="mb-4 text-sm text-gray-400">
+          Googleカレンダーのイベントをタスクとしてインポートできます。
+        </p>
+
+        {googleConnected ? (
+          <div>
+            <div className="mb-3 flex items-center gap-2 rounded-lg border border-green-accent/30 bg-green-accent/10 p-3">
+              <span className="text-green-accent">&#10003;</span>
+              <span className="text-sm text-white">
+                接続済み{googleEmail ? `（${googleEmail}）` : ""}
+              </span>
+            </div>
+            <button
+              onClick={handleDisconnectGoogle}
+              disabled={disconnecting}
+              className="rounded-lg border border-red-500/30 px-4 py-2 text-sm text-red-400 transition hover:bg-red-500/10 disabled:opacity-50"
+            >
+              {disconnecting ? "解除中..." : "連携を解除"}
+            </button>
+          </div>
+        ) : (
+          <a
+            href="/api/google/auth"
+            className="inline-block rounded-lg bg-green-accent px-4 py-2 text-sm font-semibold text-navy-950 transition hover:bg-green-accent-dark"
+          >
+            Googleアカウントを接続
+          </a>
+        )}
+      </div>
 
       {/* セクション管理 */}
       <div className="mb-8 rounded-xl bg-navy-800 p-6">

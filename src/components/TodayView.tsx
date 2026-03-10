@@ -45,10 +45,17 @@ export default function TodayView({
     new Set()
   );
   const [mounted, setMounted] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [googleConnected, setGoogleConnected] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
     setMounted(true);
+    fetch("/api/google/status")
+      .then((res) => res.json())
+      .then((data) => setGoogleConnected(data.connected))
+      .catch(() => {});
   }, []);
 
   const sensors = useSensors(
@@ -226,6 +233,28 @@ export default function TodayView({
     [supabase, date, tasks]
   );
 
+  const handleImportCalendar = useCallback(async () => {
+    setImporting(true);
+    setImportMessage(null);
+    try {
+      const res = await fetch("/api/google/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setImportMessage(data.message);
+      } else {
+        setImportMessage(data.error || "インポートに失敗しました");
+      }
+    } catch {
+      setImportMessage("インポートに失敗しました");
+    }
+    setImporting(false);
+    setTimeout(() => setImportMessage(null), 4000);
+  }, [date]);
+
   const toggleSection = (sectionId: string) => {
     setCollapsedSections((prev) => {
       const next = new Set(prev);
@@ -277,11 +306,27 @@ export default function TodayView({
               weekday: "short",
             })}
           </h2>
-          <div className="text-sm text-gray-400">
-            {tasks.filter((t) => t.status === "done").length}/{tasks.length}{" "}
-            完了
+          <div className="flex items-center gap-3">
+            {googleConnected && (
+              <button
+                onClick={handleImportCalendar}
+                disabled={importing}
+                className="rounded-lg border border-navy-600 px-3 py-1.5 text-xs text-gray-300 transition hover:border-green-accent hover:text-green-accent disabled:opacity-50"
+              >
+                {importing ? "取込中..." : "📅 カレンダー取込"}
+              </button>
+            )}
+            <div className="text-sm text-gray-400">
+              {tasks.filter((t) => t.status === "done").length}/{tasks.length}{" "}
+              完了
+            </div>
           </div>
         </div>
+        {importMessage && (
+          <div className="mb-4 rounded-lg bg-green-accent/10 px-4 py-2 text-sm text-green-accent">
+            {importMessage}
+          </div>
+        )}
 
         {/* タスクタイムライン */}
         {sectionOrder.map((section) => {

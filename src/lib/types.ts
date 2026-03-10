@@ -31,7 +31,19 @@ export type DailyTask = {
   status: "pending" | "in_progress" | "done";
   memo: string | null;
   sort_order: number;
+  google_event_id: string | null;
   created_at: string;
+};
+
+export type GoogleToken = {
+  id: string;
+  user_id: string;
+  access_token: string;
+  refresh_token: string;
+  token_expires_at: string;
+  google_email: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type TaskWithSection = DailyTask & {
