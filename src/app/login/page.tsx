@@ -39,12 +39,15 @@ export default function LoginPage() {
     const supabase = createClient();
 
     if (isSignUp) {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
       if (error) {
         setError(error.message);
+      } else if (data.session) {
+        router.push("/today");
+        router.refresh();
       } else {
         setMessage("確認メールを送信しました。メールを確認してください。");
       }

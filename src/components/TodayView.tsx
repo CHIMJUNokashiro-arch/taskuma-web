@@ -3,10 +3,24 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { DailyTask, Section } from "@/lib/types";
-import TaskCard from "./TaskCard";
+import SortableTaskCard from "./SortableTaskCard";
 import AddTaskForm from "./AddTaskForm";
 import EndTimeBar from "./EndTimeBar";
 import AIChatPanel from "./AIChatPanel";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 
 export default function TodayView({
   initialTasks,
@@ -22,6 +36,42 @@ export default function TodayView({
     new Set()
   );
   const supabase = createClient();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const oldIndex = tasks.findIndex((t) => t.id === active.id);
+      const newIndex = tasks.findIndex((t) => t.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+
+      const reordered = [...tasks];
+      const [moved] = reordered.splice(oldIndex, 1);
+      reordered.splice(newIndex, 0, moved);
+
+      // Update sort_order locally
+      const updated = reordered.map((t, i) => ({ ...t, sort_order: i }));
+      setTasks(updated);
+
+      // Persist to DB
+      const updates = updated.map((t) =>
+        supabase
+          .from("daily_tasks")
+          .update({ sort_order: t.sort_order })
+          .eq("id", t.id)
+      );
+      await Promise.all(updates);
+    },
+    [tasks, supabase]
+  );
 
   // Realtime subscription
   useEffect(() => {
@@ -183,83 +233,96 @@ export default function TodayView({
   const sectionOrder = [...sections, null]; // nullは「未分類」
 
   return (
-    <div className="mx-auto max-w-3xl p-4 pb-24 sm:p-6">
-      {/* 終了予定時刻バー */}
-      <EndTimeBar tasks={tasks} />
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="mx-auto max-w-3xl p-4 pb-24 sm:p-6">
+        {/* 終了予定時刻バー */}
+        <EndTimeBar tasks={tasks} />
 
-      {/* 日付表示 */}
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white">
-          {new Date(date + "T00:00:00").toLocaleDateString("ja-JP", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            weekday: "short",
-          })}
-        </h2>
-        <div className="text-sm text-gray-400">
-          {tasks.filter((t) => t.status === "done").length}/{tasks.length}{" "}
-          完了
-        </div>
-      </div>
-
-      {/* タスクタイムライン */}
-      {sectionOrder.map((section) => {
-        const sectionId = section?.id ?? null;
-        const sectionName = section?.name ?? "未分類";
-        const sectionTasks = tasksBySection.get(sectionId) ?? [];
-        const isCollapsed = collapsedSections.has(sectionId ?? "none");
-        const doneCount = sectionTasks.filter(
-          (t) => t.status === "done"
-        ).length;
-
-        if (sectionTasks.length === 0 && sectionId !== null) return null;
-
-        return (
-          <div key={sectionId ?? "none"} className="mb-6">
-            {sectionId !== null && (
-              <button
-                onClick={() => toggleSection(sectionId ?? "none")}
-                className="mb-3 flex w-full items-center gap-2 text-left"
-              >
-                <span
-                  className={`text-xs text-gray-500 transition ${isCollapsed ? "" : "rotate-90"}`}
-                >
-                  &#9654;
-                </span>
-                <span className="text-sm font-semibold text-gray-300">
-                  {sectionName}
-                </span>
-                <span className="text-xs text-gray-500">
-                  ({doneCount}/{sectionTasks.length})
-                </span>
-              </button>
-            )}
-
-            {!isCollapsed && (
-              <div className="space-y-2">
-                {sectionTasks
-                  .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-                  .map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      onStart={handleStartTask}
-                      onComplete={handleCompleteTask}
-                      onDelete={handleDeleteTask}
-                    />
-                  ))}
-              </div>
-            )}
+        {/* 日付表示 */}
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white">
+            {new Date(date + "T00:00:00").toLocaleDateString("ja-JP", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+              weekday: "short",
+            })}
+          </h2>
+          <div className="text-sm text-gray-400">
+            {tasks.filter((t) => t.status === "done").length}/{tasks.length}{" "}
+            完了
           </div>
-        );
-      })}
+        </div>
 
-      {/* タスク追加フォーム */}
-      <AddTaskForm sections={sections} onAdd={handleAddTask} />
+        {/* タスクタイムライン */}
+        {sectionOrder.map((section) => {
+          const sectionId = section?.id ?? null;
+          const sectionName = section?.name ?? "未分類";
+          const sectionTasks = tasksBySection.get(sectionId) ?? [];
+          const isCollapsed = collapsedSections.has(sectionId ?? "none");
+          const doneCount = sectionTasks.filter(
+            (t) => t.status === "done"
+          ).length;
 
-      {/* AIチャットパネル */}
-      <AIChatPanel />
-    </div>
+          if (sectionTasks.length === 0 && sectionId !== null) return null;
+
+          const sortedTasks = sectionTasks.sort(
+            (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+          );
+
+          return (
+            <div key={sectionId ?? "none"} className="mb-6">
+              {sectionId !== null && (
+                <button
+                  onClick={() => toggleSection(sectionId ?? "none")}
+                  className="mb-3 flex w-full items-center gap-2 text-left"
+                >
+                  <span
+                    className={`text-xs text-gray-500 transition ${isCollapsed ? "" : "rotate-90"}`}
+                  >
+                    &#9654;
+                  </span>
+                  <span className="text-sm font-semibold text-gray-300">
+                    {sectionName}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    ({doneCount}/{sectionTasks.length})
+                  </span>
+                </button>
+              )}
+
+              {!isCollapsed && (
+                <SortableContext
+                  items={sortedTasks.map((t) => t.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
+                    {sortedTasks.map((task) => (
+                      <SortableTaskCard
+                        key={task.id}
+                        task={task}
+                        onStart={handleStartTask}
+                        onComplete={handleCompleteTask}
+                        onDelete={handleDeleteTask}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              )}
+            </div>
+          );
+        })}
+
+        {/* タスク追加フォーム */}
+        <AddTaskForm sections={sections} onAdd={handleAddTask} />
+
+        {/* AIチャットパネル */}
+        <AIChatPanel />
+      </div>
+    </DndContext>
   );
 }
