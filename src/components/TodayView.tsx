@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { DailyTask, Section } from "@/lib/types";
 import SortableTaskCard from "./SortableTaskCard";
+import TaskCard from "./TaskCard";
 import AddTaskForm from "./AddTaskForm";
 import EndTimeBar from "./EndTimeBar";
 import AIChatPanel from "./AIChatPanel";
@@ -31,11 +32,24 @@ export default function TodayView({
   sections: Section[];
   date: string;
 }) {
-  const [tasks, setTasks] = useState<DailyTask[]>(initialTasks);
+  const [tasks, setTasks] = useState<DailyTask[]>(() => {
+    // Deduplicate initial tasks
+    const seen = new Set<string>();
+    return initialTasks.filter((t) => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
+  });
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
     new Set()
   );
+  const [mounted, setMounted] = useState(false);
   const supabase = createClient();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -88,7 +102,11 @@ export default function TodayView({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (payload: any) => {
           if (payload.eventType === "INSERT") {
-            setTasks((prev) => [...prev, payload.new as DailyTask]);
+            setTasks((prev) => {
+              const newTask = payload.new as DailyTask;
+              if (prev.some((t) => t.id === newTask.id)) return prev;
+              return [...prev, newTask];
+            });
           } else if (payload.eventType === "UPDATE") {
             setTasks((prev) =>
               prev.map((t) =>
@@ -232,12 +250,19 @@ export default function TodayView({
 
   const sectionOrder = [...sections, null]; // nullは「未分類」
 
-  return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
+  const dndWrapper = mounted
+    ? (children: React.ReactNode) => (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          {children}
+        </DndContext>
+      )
+    : (children: React.ReactNode) => <>{children}</>;
+
+  return dndWrapper(
       <div className="mx-auto max-w-3xl p-4 pb-24 sm:p-6">
         {/* 終了予定時刻バー */}
         <EndTimeBar tasks={tasks} />
@@ -295,7 +320,7 @@ export default function TodayView({
                 </button>
               )}
 
-              {!isCollapsed && (
+              {!isCollapsed && mounted && (
                 <SortableContext
                   items={sortedTasks.map((t) => t.id)}
                   strategy={verticalListSortingStrategy}
@@ -313,6 +338,19 @@ export default function TodayView({
                   </div>
                 </SortableContext>
               )}
+              {!isCollapsed && !mounted && (
+                <div className="space-y-2">
+                  {sortedTasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      onStart={handleStartTask}
+                      onComplete={handleCompleteTask}
+                      onDelete={handleDeleteTask}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
@@ -323,6 +361,5 @@ export default function TodayView({
         {/* AIチャットパネル */}
         <AIChatPanel />
       </div>
-    </DndContext>
   );
 }
