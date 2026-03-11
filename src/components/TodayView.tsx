@@ -280,10 +280,11 @@ export default function TodayView({
     setImporting(true);
     setImportMessage(null);
     try {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const res = await fetch("/api/google/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date }),
+        body: JSON.stringify({ date, timezone }),
       });
       const data = await res.json();
       if (res.ok) {

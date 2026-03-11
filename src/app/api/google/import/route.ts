@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { date } = await request.json();
+  const { date, timezone } = await request.json();
   if (!date) {
     return NextResponse.json({ error: "date is required" }, { status: 400 });
   }
@@ -62,8 +62,30 @@ export async function POST(request: NextRequest) {
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
-    const timeMin = new Date(`${date}T00:00:00`).toISOString();
-    const timeMax = new Date(`${date}T23:59:59`).toISOString();
+    // タイムゾーンを考慮した日の境界を設定
+    // フロントからtimezoneが来ればそれを使用、なければAsia/Tokyoをデフォルト
+    const tz = timezone || "Asia/Tokyo";
+
+    // RFC3339形式でタイムゾーン付きの時刻を生成
+    // Google Calendar APIはRFC3339を受け付ける
+    const timeMin = `${date}T00:00:00`;
+    const timeMax = `${date}T23:59:59`;
+
+    // タイムゾーンオフセットを計算
+    const getOffset = (dateStr: string, tzName: string) => {
+      const d = new Date(dateStr);
+      const utc = d.toLocaleString("en-US", { timeZone: "UTC" });
+      const local = d.toLocaleString("en-US", { timeZone: tzName });
+      const diff = new Date(local).getTime() - new Date(utc).getTime();
+      const hours = Math.floor(Math.abs(diff) / 3600000);
+      const minutes = Math.floor((Math.abs(diff) % 3600000) / 60000);
+      const sign = diff >= 0 ? "+" : "-";
+      return `${sign}${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+    };
+
+    const offset = getOffset(`${date}T12:00:00Z`, tz);
+    const timeMinTz = `${timeMin}${offset}`;
+    const timeMaxTz = `${timeMax}${offset}`;
 
     // Get all calendars the user has selected (visible in Google Calendar UI)
     const { data: calendarList } = await calendar.calendarList.list();
@@ -74,14 +96,18 @@ export async function POST(request: NextRequest) {
     // Fetch events from all selected calendars
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const allTimedEvents: any[] = [];
+    const calendarDetails: string[] = [];
+    const errors: string[] = [];
+
     for (const cal of selectedCalendars) {
       try {
         const { data: eventsData } = await calendar.events.list({
           calendarId: cal.id!,
-          timeMin,
-          timeMax,
+          timeMin: timeMinTz,
+          timeMax: timeMaxTz,
           singleEvents: true,
           orderBy: "startTime",
+          timeZone: tz,
         });
 
         const events = eventsData.items ?? [];
@@ -90,8 +116,12 @@ export async function POST(request: NextRequest) {
           (e) => e.start?.dateTime && e.end?.dateTime
         );
         allTimedEvents.push(...timed);
+        calendarDetails.push(
+          `${cal.summary ?? cal.id}: ${events.length}件中${timed.length}件`
+        );
       } catch (calError) {
-        // Skip calendars that fail (e.g. permission issues)
+        const errMsg = calError instanceof Error ? calError.message : String(calError);
+        errors.push(`${cal.summary ?? cal.id}: ${errMsg}`);
         console.warn(`Failed to fetch calendar ${cal.id}:`, calError);
       }
     }
@@ -129,10 +159,12 @@ export async function POST(request: NextRequest) {
 
     let imported = 0;
     let skipped = 0;
+    const skippedNames: string[] = [];
 
     for (const event of timedEvents) {
       if (!event.id || existingEventIds.has(event.id)) {
         skipped++;
+        skippedNames.push(event.summary ?? "(no title)");
         continue;
       }
 
@@ -156,12 +188,24 @@ export async function POST(request: NextRequest) {
       imported++;
     }
 
+    const message = imported > 0
+      ? `${imported}件インポート${skipped > 0 ? `（${skipped}件は既存のためスキップ）` : ""}`
+      : skipped > 0
+        ? `新規イベントなし（${skipped}件は取込済み）`
+        : `イベントが見つかりませんでした`;
+
     return NextResponse.json({
       imported,
       skipped,
       total: timedEvents.length,
       calendars: selectedCalendars.length,
-      message: `${selectedCalendars.length}個のカレンダーから${imported}件インポート${skipped > 0 ? `（${skipped}件スキップ）` : ""}`,
+      message,
+      debug: {
+        timeRange: `${timeMinTz} ~ ${timeMaxTz}`,
+        calendarDetails,
+        skippedNames: skippedNames.length > 0 ? skippedNames : undefined,
+        errors: errors.length > 0 ? errors : undefined,
+      },
     });
   } catch (error) {
     console.error("Google Calendar import error:", error);
