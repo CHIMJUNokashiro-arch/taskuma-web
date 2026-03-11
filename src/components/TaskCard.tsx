@@ -33,6 +33,7 @@ export default function TaskCard({
   const [editStartTime, setEditStartTime] = useState("");
   const [editEstimated, setEditEstimated] = useState(task.estimated_minutes);
   const [editTimeBlock, setEditTimeBlock] = useState<TimeBlock | null>(task.time_block);
+  const [editEndTime, setEditEndTime] = useState("");
 
   useEffect(() => {
     if (task.status !== "in_progress" || !task.started_at) {
@@ -79,6 +80,14 @@ export default function TaskCard({
     } else {
       setEditStartTime("");
     }
+    if (task.completed_at) {
+      const d = new Date(task.completed_at);
+      setEditEndTime(
+        `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`
+      );
+    } else {
+      setEditEndTime("");
+    }
     setEditTimeBlock(task.time_block);
     setEditing(true);
   };
@@ -100,6 +109,17 @@ export default function TaskCard({
       updated.setHours(h, m, 0, 0);
       if (updated.toISOString() !== orig.toISOString()) {
         updates.started_at = updated.toISOString();
+      }
+    }
+    if (editEndTime && task.completed_at) {
+      const orig = new Date(task.completed_at);
+      const [h, m] = editEndTime.split(":").map(Number);
+      const updated = new Date(orig);
+      updated.setHours(h, m, 0, 0);
+      if (updated.toISOString() !== orig.toISOString()) {
+        const diffMinutes = Math.round((updated.getTime() - orig.getTime()) / 60000);
+        updates.completed_at = updated.toISOString();
+        updates.actual_minutes = Math.max(0, (task.actual_minutes ?? 0) + diffMinutes);
       }
     }
     if (editTimeBlock !== task.time_block) {
@@ -150,6 +170,17 @@ export default function TaskCard({
                   type="time"
                   value={editStartTime}
                   onChange={(e) => setEditStartTime(e.target.value)}
+                  className="rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
+                />
+              </div>
+            )}
+            {task.completed_at && (
+              <div className="flex items-center gap-1.5">
+                <label className="text-[10px] text-gray-500">終了</label>
+                <input
+                  type="time"
+                  value={editEndTime}
+                  onChange={(e) => setEditEndTime(e.target.value)}
                   className="rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
                 />
               </div>

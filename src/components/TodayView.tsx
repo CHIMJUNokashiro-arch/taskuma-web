@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { DailyTask, Section, EisenhowerQuadrant, TimeBlock } from "@/lib/types";
 import SortableTaskCard from "./SortableTaskCard";
@@ -53,6 +54,7 @@ export default function TodayView({
   const [routineMessage, setRoutineMessage] = useState<string | null>(null);
   const [timelineStartTime, setTimelineStartTime] = useState<string | null>(null);
   const supabase = createClient();
+  const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
@@ -61,6 +63,37 @@ export default function TodayView({
       .then((data) => setGoogleConnected(data.connected))
       .catch(() => {});
   }, []);
+
+  // 日付変更を検知してページをリフレッシュ
+  useEffect(() => {
+    const getToday = () => {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    };
+
+    const checkDateChange = () => {
+      if (getToday() !== date) {
+        router.refresh();
+        window.location.reload();
+      }
+    };
+
+    // 毎分チェック
+    const interval = setInterval(checkDateChange, 60000);
+
+    // タブに戻った時もチェック
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        checkDateChange();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [date, router]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
