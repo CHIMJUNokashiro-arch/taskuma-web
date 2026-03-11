@@ -302,6 +302,22 @@ export default function TodayView({
         })
         .eq("id", taskId)
         .then(() => {});
+
+      // Googleカレンダーにエクスポート（background、エラー無視）
+      if (!task.google_event_id) {
+        fetch("/api/google/export", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskId,
+            title: task.title,
+            startedAt: task.started_at,
+            completedAt,
+            actualMinutes,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          }),
+        }).catch(() => {});
+      }
     },
     [tasks, supabase]
   );
