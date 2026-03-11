@@ -17,6 +17,7 @@ export default function TaskCard({
   onDelete,
   onUpdate,
   onAddToRoutine,
+  onRevert,
 }: {
   task: DailyTask;
   onStart: (id: string) => void;
@@ -24,6 +25,7 @@ export default function TaskCard({
   onDelete: (id: string) => void;
   onUpdate?: (id: string, updates: Partial<DailyTask>) => void;
   onAddToRoutine?: (task: DailyTask) => void;
+  onRevert?: (id: string) => void;
 }) {
   const [elapsed, setElapsed] = useState(0);
   const [editing, setEditing] = useState(false);
@@ -205,7 +207,17 @@ export default function TaskCard({
               </span>
             )}
             {task.status === "done" && (
-              <span className="text-green-accent">&#10003;</span>
+              onRevert ? (
+                <button
+                  onClick={() => onRevert(task.id)}
+                  className="text-green-accent transition hover:text-yellow-400"
+                  title="未完了に戻す"
+                >
+                  &#10003;
+                </button>
+              ) : (
+                <span className="text-green-accent">&#10003;</span>
+              )
             )}
             <h3
               className={`font-medium ${task.status === "done" ? "text-gray-500 line-through" : "text-white"} ${onUpdate ? "cursor-pointer hover:text-green-accent" : ""}`}

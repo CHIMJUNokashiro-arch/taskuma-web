@@ -243,6 +243,36 @@ export default function TodayView({
     [tasks, supabase]
   );
 
+  const handleRevertTask = useCallback(
+    async (taskId: string) => {
+      // Optimistic update
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId
+            ? {
+                ...t,
+                status: "pending" as const,
+                completed_at: null,
+                started_at: null,
+              }
+            : t
+        )
+      );
+
+      // DB update (background)
+      supabase
+        .from("daily_tasks")
+        .update({
+          status: "pending",
+          completed_at: null,
+          started_at: null,
+        })
+        .eq("id", taskId)
+        .then(() => {});
+    },
+    [supabase]
+  );
+
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
       // Optimistic update
@@ -542,6 +572,7 @@ export default function TodayView({
                         onDelete={handleDeleteTask}
                         onUpdate={handleUpdateTask}
                         onAddToRoutine={handleAddToRoutine}
+                        onRevert={handleRevertTask}
                       />
                     ))}
                   </div>
@@ -558,6 +589,7 @@ export default function TodayView({
                       onDelete={handleDeleteTask}
                       onUpdate={handleUpdateTask}
                       onAddToRoutine={handleAddToRoutine}
+                      onRevert={handleRevertTask}
                     />
                   ))}
                 </div>

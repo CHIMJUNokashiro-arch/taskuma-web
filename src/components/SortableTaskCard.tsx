@@ -12,6 +12,7 @@ export default function SortableTaskCard({
   onDelete,
   onUpdate,
   onAddToRoutine,
+  onRevert,
 }: {
   task: DailyTask;
   onStart: (id: string) => void;
@@ -19,6 +20,7 @@ export default function SortableTaskCard({
   onDelete: (id: string) => void;
   onUpdate?: (id: string, updates: Partial<DailyTask>) => void;
   onAddToRoutine?: (task: DailyTask) => void;
+  onRevert?: (id: string) => void;
 }) {
   const {
     attributes,
@@ -60,6 +62,7 @@ export default function SortableTaskCard({
           onDelete={onDelete}
           onUpdate={onUpdate}
           onAddToRoutine={onAddToRoutine}
+          onRevert={onRevert}
         />
       </div>
     </div>
