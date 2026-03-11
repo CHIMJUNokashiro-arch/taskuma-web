@@ -1,8 +1,15 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import type { DailyTask } from "@/lib/types";
-import { EISENHOWER_COLORS } from "@/lib/types";
+import type { DailyTask, EisenhowerQuadrant } from "@/lib/types";
+
+// Tailwindはビルド時に静的スキャンするため、クラス名をリテラルで定義する必要がある
+const QUADRANT_BLOCK_COLORS: Record<EisenhowerQuadrant, string> = {
+  urgent_important: "bg-red-500",
+  important: "bg-blue-500",
+  urgent: "bg-yellow-500",
+  other: "bg-gray-400",
+};
 
 const TIMELINE_START = 6; // 6:00
 const TIMELINE_END = 24; // 24:00
@@ -157,9 +164,7 @@ export default function TimelineView({
           if (!block) return null;
 
           const colorClass = block.quadrant
-            ? EISENHOWER_COLORS[block.quadrant].text
-                .replace("text-", "bg-")
-                .replace("-400", "-500")
+            ? QUADRANT_BLOCK_COLORS[block.quadrant]
             : block.status === "in_progress"
               ? "bg-green-500"
               : "bg-gray-500";
