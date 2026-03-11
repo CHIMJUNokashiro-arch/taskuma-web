@@ -8,7 +8,10 @@ export async function GET() {
     process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI
   );
 
-  const scopes = ["https://www.googleapis.com/auth/calendar.readonly"];
+  const scopes = [
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/userinfo.email",
+  ];
 
   const url = oauth2Client.generateAuthUrl({
     access_type: "offline",

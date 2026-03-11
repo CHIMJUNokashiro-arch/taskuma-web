@@ -18,9 +18,15 @@ export async function GET(request: NextRequest) {
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
 
-    // Get user email from Google
-    const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
-    const { data: profile } = await oauth2.userinfo.get();
+    // Get user email from Google (optional - don't fail if unavailable)
+    let googleEmail: string | null = null;
+    try {
+      const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+      const { data: profile } = await oauth2.userinfo.get();
+      googleEmail = profile.email ?? null;
+    } catch {
+      console.warn("Could not fetch Google profile email, continuing without it");
+    }
 
     const supabase = await createClient();
     const {
@@ -38,7 +44,7 @@ export async function GET(request: NextRequest) {
         access_token: tokens.access_token!,
         refresh_token: tokens.refresh_token!,
         token_expires_at: new Date(tokens.expiry_date!).toISOString(),
-        google_email: profile.email ?? null,
+        google_email: googleEmail,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id" }
