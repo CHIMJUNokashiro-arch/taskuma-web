@@ -1,3 +1,58 @@
+// タイムブロック（3時間ごと）
+export type TimeBlock = "morning" | "am" | "afternoon" | "evening" | "night";
+
+export const TIME_BLOCKS: TimeBlock[] = [
+  "morning",
+  "am",
+  "afternoon",
+  "evening",
+  "night",
+];
+
+export const TIME_BLOCK_LABELS: Record<TimeBlock, string> = {
+  morning: "朝 6-9",
+  am: "午前 9-12",
+  afternoon: "午後 12-15",
+  evening: "夕方 15-18",
+  night: "夜 18-21",
+};
+
+export const TIME_BLOCK_COLORS: Record<
+  TimeBlock,
+  { bg: string; text: string; border: string; badge: string }
+> = {
+  morning: {
+    bg: "bg-orange-500/15",
+    text: "text-orange-400",
+    border: "border-orange-500/30",
+    badge: "bg-orange-500/20 text-orange-300",
+  },
+  am: {
+    bg: "bg-sky-500/15",
+    text: "text-sky-400",
+    border: "border-sky-500/30",
+    badge: "bg-sky-500/20 text-sky-300",
+  },
+  afternoon: {
+    bg: "bg-amber-500/15",
+    text: "text-amber-400",
+    border: "border-amber-500/30",
+    badge: "bg-amber-500/20 text-amber-300",
+  },
+  evening: {
+    bg: "bg-purple-500/15",
+    text: "text-purple-400",
+    border: "border-purple-500/30",
+    badge: "bg-purple-500/20 text-purple-300",
+  },
+  night: {
+    bg: "bg-indigo-500/15",
+    text: "text-indigo-400",
+    border: "border-indigo-500/30",
+    badge: "bg-indigo-500/20 text-indigo-300",
+  },
+};
+
 // アイゼンハワーマトリクス 4象限
 export type EisenhowerQuadrant =
   | "urgent_important"
@@ -66,6 +121,7 @@ export type TaskTemplate = {
   is_routine: boolean;
   sort_order: number;
   eisenhower_quadrant: EisenhowerQuadrant | null;
+  time_block: TimeBlock | null;
   created_at: string;
 };
 
@@ -85,6 +141,7 @@ export type DailyTask = {
   sort_order: number;
   google_event_id: string | null;
   eisenhower_quadrant: EisenhowerQuadrant | null;
+  time_block: TimeBlock | null;
   created_at: string;
 };
 

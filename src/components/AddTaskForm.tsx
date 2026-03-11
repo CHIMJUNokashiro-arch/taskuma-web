@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { Section, EisenhowerQuadrant } from "@/lib/types";
+import type { Section, EisenhowerQuadrant, TimeBlock } from "@/lib/types";
 import {
   EISENHOWER_QUADRANTS,
   EISENHOWER_LABELS,
   EISENHOWER_COLORS,
+  TIME_BLOCKS,
+  TIME_BLOCK_LABELS,
+  TIME_BLOCK_COLORS,
 } from "@/lib/types";
 
 export default function AddTaskForm({
@@ -19,7 +22,8 @@ export default function AddTaskForm({
     estimatedMinutes: number,
     sectionId: string | null,
     eisenhowerQuadrant: EisenhowerQuadrant | null,
-    timeRange: { startedAt: string; completedAt: string; actualMinutes: number } | null
+    timeRange: { startedAt: string; completedAt: string; actualMinutes: number } | null,
+    timeBlock: TimeBlock | null
   ) => void;
   date: string;
 }) {
@@ -28,6 +32,7 @@ export default function AddTaskForm({
   const [estimated, setEstimated] = useState(30);
   const [sectionId, setSectionId] = useState<string | null>(null);
   const [quadrant, setQuadrant] = useState<EisenhowerQuadrant | null>(null);
+  const [timeBlock, setTimeBlock] = useState<TimeBlock | null>(null);
   const [showTimeRange, setShowTimeRange] = useState(false);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -52,11 +57,12 @@ export default function AddTaskForm({
       };
     }
 
-    onAdd(title.trim(), estimated, sectionId, quadrant, timeRange);
+    onAdd(title.trim(), estimated, sectionId, quadrant, timeRange, timeBlock);
     setTitle("");
     setEstimated(30);
     setSectionId(null);
     setQuadrant(null);
+    setTimeBlock(null);
     setShowTimeRange(false);
     setStartTime("");
     setEndTime("");
@@ -144,6 +150,28 @@ export default function AddTaskForm({
               }`}
             >
               {EISENHOWER_LABELS[q]}
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* タイムブロック選択 */}
+      <div className="mb-3">
+        <label className="mb-1 block text-xs text-gray-400">
+          タイムブロック
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {TIME_BLOCKS.map((tb) => (
+            <button
+              key={tb}
+              type="button"
+              onClick={() => setTimeBlock(timeBlock === tb ? null : tb)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                timeBlock === tb
+                  ? `${TIME_BLOCK_COLORS[tb].bg} ${TIME_BLOCK_COLORS[tb].text} ${TIME_BLOCK_COLORS[tb].border} border`
+                  : "border border-navy-600 text-gray-500 hover:border-navy-400"
+              }`}
+            >
+              {TIME_BLOCK_LABELS[tb]}
             </button>
           ))}
         </div>

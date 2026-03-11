@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { DailyTask, Section, EisenhowerQuadrant } from "@/lib/types";
+import type { DailyTask, Section, EisenhowerQuadrant, TimeBlock } from "@/lib/types";
 import SortableTaskCard from "./SortableTaskCard";
 import TaskCard from "./TaskCard";
 import AddTaskForm from "./AddTaskForm";
@@ -50,6 +50,7 @@ export default function TodayView({
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [googleConnected, setGoogleConnected] = useState(false);
+  const [routineMessage, setRoutineMessage] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -219,13 +220,62 @@ export default function TodayView({
     [supabase]
   );
 
+  const handleAddToRoutine = useCallback(
+    async (task: DailyTask) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // 同名テンプレートが既にあるかチェック
+      const { data: existing } = await supabase
+        .from("task_templates")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("title", task.title)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        setRoutineMessage("このタスクは既にルーティンに登録されています");
+        setTimeout(() => setRoutineMessage(null), 3000);
+        return;
+      }
+
+      // 最大sort_order取得
+      const { data: allTemplates } = await supabase
+        .from("task_templates")
+        .select("sort_order")
+        .eq("user_id", user.id)
+        .order("sort_order", { ascending: false })
+        .limit(1);
+
+      const maxSort = (allTemplates?.[0]?.sort_order as number) ?? 0;
+
+      await supabase.from("task_templates").insert({
+        user_id: user.id,
+        title: task.title,
+        estimated_minutes: task.estimated_minutes,
+        section_id: task.section_id,
+        eisenhower_quadrant: task.eisenhower_quadrant,
+        time_block: task.time_block,
+        is_routine: true,
+        sort_order: maxSort + 1,
+      });
+
+      setRoutineMessage(`「${task.title}」をルーティンに追加しました`);
+      setTimeout(() => setRoutineMessage(null), 3000);
+    },
+    [supabase]
+  );
+
   const handleAddTask = useCallback(
     async (
       title: string,
       estimatedMinutes: number,
       sectionId: string | null,
       eisenhowerQuadrant: EisenhowerQuadrant | null,
-      timeRange: { startedAt: string; completedAt: string; actualMinutes: number } | null
+      timeRange: { startedAt: string; completedAt: string; actualMinutes: number } | null,
+      timeBlock: TimeBlock | null
     ) => {
       const {
         data: { user },
@@ -246,6 +296,7 @@ export default function TodayView({
             estimated_minutes: estimatedMinutes,
             section_id: sectionId,
             eisenhower_quadrant: eisenhowerQuadrant,
+            time_block: timeBlock,
             sort_order: maxSort + 1,
             status: "done" as const,
             started_at: timeRange.startedAt,
@@ -259,6 +310,7 @@ export default function TodayView({
             estimated_minutes: estimatedMinutes,
             section_id: sectionId,
             eisenhower_quadrant: eisenhowerQuadrant,
+            time_block: timeBlock,
             sort_order: maxSort + 1,
             status: "pending" as const,
           };
@@ -377,6 +429,11 @@ export default function TodayView({
             {importMessage}
           </div>
         )}
+        {routineMessage && (
+          <div className="mb-4 rounded-lg bg-green-accent/10 px-4 py-2 text-sm text-green-accent">
+            {routineMessage}
+          </div>
+        )}
 
         {/* タスクタイムライン */}
         {sectionOrder.map((section) => {
@@ -429,6 +486,7 @@ export default function TodayView({
                         onComplete={handleCompleteTask}
                         onDelete={handleDeleteTask}
                         onUpdate={handleUpdateTask}
+                        onAddToRoutine={handleAddToRoutine}
                       />
                     ))}
                   </div>
@@ -444,6 +502,7 @@ export default function TodayView({
                       onComplete={handleCompleteTask}
                       onDelete={handleDeleteTask}
                       onUpdate={handleUpdateTask}
+                      onAddToRoutine={handleAddToRoutine}
                     />
                   ))}
                 </div>

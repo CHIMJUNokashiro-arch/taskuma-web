@@ -1,8 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { DailyTask } from "@/lib/types";
-import { EISENHOWER_LABELS, EISENHOWER_COLORS } from "@/lib/types";
+import type { DailyTask, TimeBlock } from "@/lib/types";
+import {
+  EISENHOWER_LABELS,
+  EISENHOWER_COLORS,
+  TIME_BLOCKS,
+  TIME_BLOCK_LABELS,
+  TIME_BLOCK_COLORS,
+} from "@/lib/types";
 
 export default function TaskCard({
   task,
@@ -10,18 +16,21 @@ export default function TaskCard({
   onComplete,
   onDelete,
   onUpdate,
+  onAddToRoutine,
 }: {
   task: DailyTask;
   onStart: (id: string) => void;
   onComplete: (id: string) => void;
   onDelete: (id: string) => void;
   onUpdate?: (id: string, updates: Partial<DailyTask>) => void;
+  onAddToRoutine?: (task: DailyTask) => void;
 }) {
   const [elapsed, setElapsed] = useState(0);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editStartTime, setEditStartTime] = useState("");
   const [editEstimated, setEditEstimated] = useState(task.estimated_minutes);
+  const [editTimeBlock, setEditTimeBlock] = useState<TimeBlock | null>(task.time_block);
 
   useEffect(() => {
     if (task.status !== "in_progress" || !task.started_at) {
@@ -68,6 +77,7 @@ export default function TaskCard({
     } else {
       setEditStartTime("");
     }
+    setEditTimeBlock(task.time_block);
     setEditing(true);
   };
 
@@ -89,6 +99,9 @@ export default function TaskCard({
       if (updated.toISOString() !== orig.toISOString()) {
         updates.started_at = updated.toISOString();
       }
+    }
+    if (editTimeBlock !== task.time_block) {
+      updates.time_block = editTimeBlock;
     }
 
     if (Object.keys(updates).length > 0) {
@@ -140,6 +153,25 @@ export default function TaskCard({
               </div>
             )}
           </div>
+          <div>
+            <label className="mb-1 block text-[10px] text-gray-500">タイムブロック</label>
+            <div className="flex flex-wrap gap-1">
+              {TIME_BLOCKS.map((tb) => (
+                <button
+                  key={tb}
+                  type="button"
+                  onClick={() => setEditTimeBlock(editTimeBlock === tb ? null : tb)}
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition ${
+                    editTimeBlock === tb
+                      ? `${TIME_BLOCK_COLORS[tb].bg} ${TIME_BLOCK_COLORS[tb].text} ${TIME_BLOCK_COLORS[tb].border} border`
+                      : "border border-navy-600 text-gray-500 hover:border-navy-400"
+                  }`}
+                >
+                  {TIME_BLOCK_LABELS[tb]}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex gap-2">
             <button
               onClick={handleSave}
@@ -189,6 +221,13 @@ export default function TaskCard({
                 {EISENHOWER_LABELS[task.eisenhower_quadrant]}
               </span>
             )}
+            {task.time_block && (
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${TIME_BLOCK_COLORS[task.time_block].badge}`}
+              >
+                {TIME_BLOCK_LABELS[task.time_block]}
+              </span>
+            )}
           </div>
 
           <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
@@ -226,6 +265,27 @@ export default function TaskCard({
               className="rounded-lg bg-green-accent px-3 py-1.5 text-xs font-medium text-navy-950 transition hover:bg-green-accent-dark"
             >
               完了
+            </button>
+          )}
+          {task.status !== "in_progress" && onAddToRoutine && (
+            <button
+              onClick={() => onAddToRoutine(task)}
+              className="rounded-lg p-1.5 text-gray-600 transition hover:bg-navy-700 hover:text-green-accent"
+              title="ルーティンに追加"
+            >
+              <svg
+                className="h-4 w-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
             </button>
           )}
           {task.status !== "in_progress" && (
