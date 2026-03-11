@@ -142,8 +142,33 @@ export default function TodayView({
 
   const handleStartTask = useCallback(
     async (taskId: string) => {
-      // 他に実行中のタスクがあれば停止
+      const now = new Date().toISOString();
       const inProgressTask = tasks.find((t) => t.status === "in_progress");
+
+      // Optimistic update
+      setTasks((prev) =>
+        prev.map((t) => {
+          if (t.id === taskId) {
+            return { ...t, status: "in_progress" as const, started_at: now };
+          }
+          if (t.status === "in_progress") {
+            const elapsed = t.started_at
+              ? Math.round(
+                  (Date.now() - new Date(t.started_at).getTime()) / 60000
+                )
+              : 0;
+            return {
+              ...t,
+              status: "pending" as const,
+              actual_minutes: (t.actual_minutes ?? 0) + elapsed,
+              started_at: null,
+            };
+          }
+          return t;
+        })
+      );
+
+      // DB updates (background)
       if (inProgressTask) {
         const elapsed = inProgressTask.started_at
           ? Math.round(
@@ -151,23 +176,25 @@ export default function TodayView({
                 60000
             )
           : 0;
-        await supabase
+        supabase
           .from("daily_tasks")
           .update({
             status: "pending",
             actual_minutes: (inProgressTask.actual_minutes ?? 0) + elapsed,
             started_at: null,
           })
-          .eq("id", inProgressTask.id);
+          .eq("id", inProgressTask.id)
+          .then(() => {});
       }
 
-      await supabase
+      supabase
         .from("daily_tasks")
         .update({
           status: "in_progress",
-          started_at: new Date().toISOString(),
+          started_at: now,
         })
-        .eq("id", taskId);
+        .eq("id", taskId)
+        .then(() => {});
     },
     [tasks, supabase]
   );
@@ -183,40 +210,67 @@ export default function TodayView({
           )
         : 0;
 
-      await supabase
+      const completedAt = new Date().toISOString();
+      const actualMinutes = (task.actual_minutes ?? 0) + elapsed;
+
+      // Optimistic update
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === taskId
+            ? {
+                ...t,
+                status: "done" as const,
+                completed_at: completedAt,
+                actual_minutes: actualMinutes,
+                started_at: null,
+              }
+            : t
+        )
+      );
+
+      // DB update (background)
+      supabase
         .from("daily_tasks")
         .update({
           status: "done",
-          completed_at: new Date().toISOString(),
-          actual_minutes: (task.actual_minutes ?? 0) + elapsed,
+          completed_at: completedAt,
+          actual_minutes: actualMinutes,
           started_at: null,
         })
-        .eq("id", taskId);
+        .eq("id", taskId)
+        .then(() => {});
     },
     [tasks, supabase]
   );
 
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
-      await supabase.from("daily_tasks").delete().eq("id", taskId);
+      // Optimistic update
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
+
+      // DB delete (background)
+      supabase.from("daily_tasks").delete().eq("id", taskId).then(() => {});
     },
     [supabase]
   );
 
   const handleUpdateTask = useCallback(
     async (taskId: string, updates: Partial<DailyTask>) => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, user_id, created_at, ...rest } = updates as DailyTask;
+      // Optimistic update
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
+      );
+
       const dbUpdates = Object.fromEntries(
         Object.entries(updates).filter(
           ([key]) => !["id", "user_id", "created_at"].includes(key)
         )
       );
-      await supabase
+      supabase
         .from("daily_tasks")
         .update(dbUpdates)
-        .eq("id", taskId);
+        .eq("id", taskId)
+        .then(() => {});
     },
     [supabase]
   );
