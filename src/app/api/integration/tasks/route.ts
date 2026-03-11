@@ -258,3 +258,70 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// ===== DELETE: タスク削除 =====
+
+export async function DELETE(request: NextRequest) {
+  if (!validateApiKey(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userId = getUserId();
+  if (!userId) {
+    return NextResponse.json(
+      { error: "TASKMA_USER_ID not configured" },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { taskId } = body as { taskId: string };
+
+    if (!taskId) {
+      return NextResponse.json(
+        { error: "taskId required" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = getServiceClient();
+
+    // Verify task belongs to user before deleting
+    const { data: task, error: fetchError } = await supabase
+      .from("daily_tasks")
+      .select("id, user_id")
+      .eq("id", taskId)
+      .eq("user_id", userId)
+      .single();
+
+    if (fetchError || !task) {
+      return NextResponse.json(
+        { error: "Task not found" },
+        { status: 404 }
+      );
+    }
+
+    const { error: deleteError } = await supabase
+      .from("daily_tasks")
+      .delete()
+      .eq("id", taskId)
+      .eq("user_id", userId);
+
+    if (deleteError) {
+      console.error("Integration DELETE error:", deleteError);
+      return NextResponse.json(
+        { error: "Failed to delete task" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ deleted: true, taskId });
+  } catch (err) {
+    console.error("Integration DELETE error:", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
