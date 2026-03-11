@@ -102,26 +102,69 @@ export default function TaskCard({
     if (editEstimated !== task.estimated_minutes) {
       updates.estimated_minutes = editEstimated;
     }
-    if (editStartTime && task.started_at) {
-      const orig = new Date(task.started_at);
+
+    // Build base date from task.date for creating new timestamps
+    const baseDate = task.date ? new Date(task.date + "T00:00:00") : new Date();
+
+    // Handle start time
+    if (editStartTime) {
       const [h, m] = editStartTime.split(":").map(Number);
-      const updated = new Date(orig);
-      updated.setHours(h, m, 0, 0);
-      if (updated.toISOString() !== orig.toISOString()) {
-        updates.started_at = updated.toISOString();
+      if (task.started_at) {
+        // Existing started_at: update time portion
+        const orig = new Date(task.started_at);
+        const updated = new Date(orig);
+        updated.setHours(h, m, 0, 0);
+        if (updated.toISOString() !== orig.toISOString()) {
+          updates.started_at = updated.toISOString();
+        }
+      } else {
+        // No started_at: create new timestamp from task date + input time
+        const newStart = new Date(baseDate);
+        newStart.setHours(h, m, 0, 0);
+        updates.started_at = newStart.toISOString();
       }
     }
-    if (editEndTime && task.completed_at) {
-      const orig = new Date(task.completed_at);
+
+    // Handle end time
+    if (editEndTime) {
       const [h, m] = editEndTime.split(":").map(Number);
-      const updated = new Date(orig);
-      updated.setHours(h, m, 0, 0);
-      if (updated.toISOString() !== orig.toISOString()) {
-        const diffMinutes = Math.round((updated.getTime() - orig.getTime()) / 60000);
-        updates.completed_at = updated.toISOString();
-        updates.actual_minutes = Math.max(0, (task.actual_minutes ?? 0) + diffMinutes);
+      if (task.completed_at) {
+        // Existing completed_at: update time portion
+        const orig = new Date(task.completed_at);
+        const updated = new Date(orig);
+        updated.setHours(h, m, 0, 0);
+        if (updated.toISOString() !== orig.toISOString()) {
+          updates.completed_at = updated.toISOString();
+          // Recalculate actual_minutes from start to new end
+          const startRef = updates.started_at
+            ? new Date(updates.started_at)
+            : task.started_at
+            ? new Date(task.started_at)
+            : null;
+          if (startRef) {
+            updates.actual_minutes = Math.max(0, Math.round((updated.getTime() - startRef.getTime()) / 60000));
+          } else {
+            const diffMinutes = Math.round((updated.getTime() - orig.getTime()) / 60000);
+            updates.actual_minutes = Math.max(0, (task.actual_minutes ?? 0) + diffMinutes);
+          }
+        }
+      } else {
+        // No completed_at: create new timestamp from task date + input time
+        const newEnd = new Date(baseDate);
+        newEnd.setHours(h, m, 0, 0);
+        updates.completed_at = newEnd.toISOString();
+        // Calculate actual_minutes from start to end
+        const startRef = updates.started_at
+          ? new Date(updates.started_at)
+          : task.started_at
+          ? new Date(task.started_at)
+          : null;
+        if (startRef) {
+          updates.actual_minutes = Math.max(0, Math.round((newEnd.getTime() - startRef.getTime()) / 60000));
+        }
       }
     }
+
     if (editTimeBlock !== task.time_block) {
       updates.time_block = editTimeBlock;
     }
@@ -163,24 +206,24 @@ export default function TaskCard({
                 className="w-16 rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
               />
             </div>
-            {task.started_at && (
-              <div className="flex items-center gap-1.5">
-                <label className="text-[10px] text-gray-500">開始</label>
-                <input
-                  type="time"
-                  value={editStartTime}
-                  onChange={(e) => setEditStartTime(e.target.value)}
-                  className="rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
-                />
-              </div>
-            )}
-            {task.completed_at && (
+            <div className="flex items-center gap-1.5">
+              <label className="text-[10px] text-gray-500">開始</label>
+              <input
+                type="time"
+                value={editStartTime}
+                onChange={(e) => setEditStartTime(e.target.value)}
+                placeholder="--:--"
+                className="rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
+              />
+            </div>
+            {(task.status === "done" || task.completed_at) && (
               <div className="flex items-center gap-1.5">
                 <label className="text-[10px] text-gray-500">終了</label>
                 <input
                   type="time"
                   value={editEndTime}
                   onChange={(e) => setEditEndTime(e.target.value)}
+                  placeholder="--:--"
                   className="rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
                 />
               </div>
