@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     // Fetch tasks for the date
     const { data: tasks, error } = await supabase
       .from("daily_tasks")
-      .select("id, title, status, estimated_minutes, actual_minutes, completed_at, eisenhower_quadrant, section_id, sort_order")
+      .select("id, title, status, estimated_minutes, actual_minutes, started_at, completed_at, eisenhower_quadrant, section_id, sort_order")
       .eq("user_id", userId)
       .eq("date", date)
       .order("sort_order");
@@ -87,6 +87,7 @@ export async function GET(request: NextRequest) {
         status: string;
         estimated_minutes: number;
         actual_minutes: number | null;
+        started_at: string | null;
         completed_at: string | null;
         eisenhower_quadrant: string | null;
       }[];
@@ -102,6 +103,7 @@ export async function GET(request: NextRequest) {
           status: t.status,
           estimated_minutes: t.estimated_minutes,
           actual_minutes: t.actual_minutes,
+          started_at: t.started_at,
           completed_at: t.completed_at,
           eisenhower_quadrant: t.eisenhower_quadrant,
         }));
