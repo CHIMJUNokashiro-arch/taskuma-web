@@ -36,7 +36,8 @@ export async function updateSession(request: NextRequest) {
 
   // 未ログインユーザーを/loginにリダイレクト
   const publicPaths = ["/", "/login", "/api/google/callback"];
-  const isPublicPath = publicPaths.includes(request.nextUrl.pathname);
+  const isPublicPath = publicPaths.includes(request.nextUrl.pathname)
+    || request.nextUrl.pathname.startsWith("/api/integration");
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone();
