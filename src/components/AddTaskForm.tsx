@@ -11,29 +11,55 @@ import {
 export default function AddTaskForm({
   sections,
   onAdd,
+  date,
 }: {
   sections: Section[];
   onAdd: (
     title: string,
     estimatedMinutes: number,
     sectionId: string | null,
-    eisenhowerQuadrant: EisenhowerQuadrant | null
+    eisenhowerQuadrant: EisenhowerQuadrant | null,
+    timeRange: { startedAt: string; completedAt: string; actualMinutes: number } | null
   ) => void;
+  date: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [estimated, setEstimated] = useState(30);
   const [sectionId, setSectionId] = useState<string | null>(null);
   const [quadrant, setQuadrant] = useState<EisenhowerQuadrant | null>(null);
+  const [showTimeRange, setShowTimeRange] = useState(false);
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+
+  const calcActualMinutes = () => {
+    if (!startTime || !endTime) return 0;
+    const s = new Date(`${date}T${startTime}`);
+    const e = new Date(`${date}T${endTime}`);
+    return Math.max(Math.round((e.getTime() - s.getTime()) / 60000), 0);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    onAdd(title.trim(), estimated, sectionId, quadrant);
+
+    let timeRange: { startedAt: string; completedAt: string; actualMinutes: number } | null = null;
+    if (showTimeRange && startTime && endTime) {
+      timeRange = {
+        startedAt: new Date(`${date}T${startTime}`).toISOString(),
+        completedAt: new Date(`${date}T${endTime}`).toISOString(),
+        actualMinutes: calcActualMinutes(),
+      };
+    }
+
+    onAdd(title.trim(), estimated, sectionId, quadrant, timeRange);
     setTitle("");
     setEstimated(30);
     setSectionId(null);
     setQuadrant(null);
+    setShowTimeRange(false);
+    setStartTime("");
+    setEndTime("");
     setIsOpen(false);
   };
 
@@ -114,6 +140,45 @@ export default function AddTaskForm({
             </button>
           ))}
         </div>
+      </div>
+      {/* 時間指定（後から記録用） */}
+      <div className="mb-3">
+        <button
+          type="button"
+          onClick={() => setShowTimeRange(!showTimeRange)}
+          className="flex items-center gap-1 text-xs text-gray-500 transition hover:text-gray-300"
+        >
+          <span className={`transition ${showTimeRange ? "rotate-90" : ""}`}>&#9654;</span>
+          実施時間を記録（後から追加用）
+        </button>
+        {showTimeRange && (
+          <div className="mt-2 flex items-center gap-2">
+            <div className="flex-1">
+              <label className="mb-1 block text-[10px] text-gray-500">開始</label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full rounded-lg border border-navy-600 bg-navy-900 px-3 py-2 text-sm text-white focus:border-green-accent focus:outline-none"
+              />
+            </div>
+            <span className="mt-4 text-gray-500">-</span>
+            <div className="flex-1">
+              <label className="mb-1 block text-[10px] text-gray-500">終了</label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full rounded-lg border border-navy-600 bg-navy-900 px-3 py-2 text-sm text-white focus:border-green-accent focus:outline-none"
+              />
+            </div>
+            {startTime && endTime && (
+              <span className="mt-4 text-xs text-green-accent">
+                {calcActualMinutes()}分
+              </span>
+            )}
+          </div>
+        )}
       </div>
       <div className="flex gap-2">
         <button

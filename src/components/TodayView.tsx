@@ -207,7 +207,8 @@ export default function TodayView({
       title: string,
       estimatedMinutes: number,
       sectionId: string | null,
-      eisenhowerQuadrant: EisenhowerQuadrant | null
+      eisenhowerQuadrant: EisenhowerQuadrant | null,
+      timeRange: { startedAt: string; completedAt: string; actualMinutes: number } | null
     ) => {
       const {
         data: { user },
@@ -219,18 +220,35 @@ export default function TodayView({
         0
       );
 
+      // 時間指定がある場合は完了済みタスクとして追加
+      const insertData = timeRange
+        ? {
+            user_id: user.id,
+            date,
+            title,
+            estimated_minutes: estimatedMinutes,
+            section_id: sectionId,
+            eisenhower_quadrant: eisenhowerQuadrant,
+            sort_order: maxSort + 1,
+            status: "done" as const,
+            started_at: timeRange.startedAt,
+            completed_at: timeRange.completedAt,
+            actual_minutes: timeRange.actualMinutes,
+          }
+        : {
+            user_id: user.id,
+            date,
+            title,
+            estimated_minutes: estimatedMinutes,
+            section_id: sectionId,
+            eisenhower_quadrant: eisenhowerQuadrant,
+            sort_order: maxSort + 1,
+            status: "pending" as const,
+          };
+
       const { data } = await supabase
         .from("daily_tasks")
-        .insert({
-          user_id: user.id,
-          date,
-          title,
-          estimated_minutes: estimatedMinutes,
-          section_id: sectionId,
-          eisenhower_quadrant: eisenhowerQuadrant,
-          sort_order: maxSort + 1,
-          status: "pending",
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -415,7 +433,7 @@ export default function TodayView({
         })}
 
         {/* タスク追加フォーム */}
-        <AddTaskForm sections={sections} onAdd={handleAddTask} />
+        <AddTaskForm sections={sections} onAdd={handleAddTask} date={date} />
 
         {/* AIチャットパネル */}
         <AIChatPanel />
