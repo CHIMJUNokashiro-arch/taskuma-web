@@ -64,24 +64,27 @@ export default function TodayView({
       .catch(() => {});
   }, []);
 
-  // 日付変更を検知してページをリフレッシュ
+  // ローカル日付ヘルパー
+  const getLocalToday = useCallback(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  }, []);
+
+  const isToday = date === getLocalToday();
+
+  // 「今日」表示中に日付が変わったら自動ナビゲーション
   useEffect(() => {
-    const getToday = () => {
-      const now = new Date();
-      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    };
+    if (!isToday) return; // 過去の日付を見ている場合はリダイレクトしない
 
     const checkDateChange = () => {
-      if (getToday() !== date) {
-        router.refresh();
-        window.location.reload();
+      const today = getLocalToday();
+      if (today !== date) {
+        router.push(`/today?date=${today}`);
       }
     };
 
-    // 毎分チェック
     const interval = setInterval(checkDateChange, 60000);
 
-    // タブに戻った時もチェック
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
         checkDateChange();
@@ -93,7 +96,34 @@ export default function TodayView({
       clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [date, router]);
+  }, [date, isToday, getLocalToday, router]);
+
+  // initialTasksが変わった時にtasksを更新（日付ナビゲーション時）
+  useEffect(() => {
+    const seen = new Set<string>();
+    setTasks(
+      initialTasks.filter((t) => {
+        if (seen.has(t.id)) return false;
+        seen.add(t.id);
+        return true;
+      })
+    );
+  }, [initialTasks]);
+
+  // 日付ナビゲーション
+  const navigateDate = useCallback(
+    (offset: number) => {
+      const d = new Date(date + "T00:00:00");
+      d.setDate(d.getDate() + offset);
+      const newDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      router.push(`/today?date=${newDate}`);
+    },
+    [date, router]
+  );
+
+  const goToToday = useCallback(() => {
+    router.push(`/today?date=${getLocalToday()}`);
+  }, [getLocalToday, router]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -516,29 +546,59 @@ export default function TodayView({
         {/* タイムライン表示 */}
         <TimelineView tasks={tasks} onTimeClick={setTimelineStartTime} />
 
-        {/* 日付表示 */}
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">
-            {new Date(date + "T00:00:00").toLocaleDateString("ja-JP", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-              weekday: "short",
-            })}
-          </h2>
-          <div className="flex items-center gap-3">
-            {googleConnected && (
+        {/* 日付表示 + ナビゲーション */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
               <button
-                onClick={handleImportCalendar}
-                disabled={importing}
-                className="rounded-lg border border-navy-600 px-3 py-1.5 text-xs text-gray-300 transition hover:border-green-accent hover:text-green-accent disabled:opacity-50"
+                onClick={() => navigateDate(-1)}
+                className="rounded-lg p-1.5 text-gray-400 transition hover:bg-navy-700 hover:text-white"
+                title="前日"
               >
-                {importing ? "取込中..." : "📅 カレンダー取込"}
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
               </button>
-            )}
-            <div className="text-sm text-gray-400">
-              {tasks.filter((t) => t.status === "done").length}/{tasks.length}{" "}
-              完了
+              <h2 className="text-xl font-bold text-white">
+                {new Date(date + "T00:00:00").toLocaleDateString("ja-JP", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                  weekday: "short",
+                })}
+              </h2>
+              <button
+                onClick={() => navigateDate(1)}
+                className="rounded-lg p-1.5 text-gray-400 transition hover:bg-navy-700 hover:text-white"
+                title="翌日"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+              {!isToday && (
+                <button
+                  onClick={goToToday}
+                  className="ml-2 rounded-lg bg-green-accent/10 px-3 py-1 text-xs font-medium text-green-accent transition hover:bg-green-accent/20"
+                >
+                  今日
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {googleConnected && (
+                <button
+                  onClick={handleImportCalendar}
+                  disabled={importing}
+                  className="rounded-lg border border-navy-600 px-3 py-1.5 text-xs text-gray-300 transition hover:border-green-accent hover:text-green-accent disabled:opacity-50"
+                >
+                  {importing ? "取込中..." : "📅 カレンダー取込"}
+                </button>
+              )}
+              <div className="text-sm text-gray-400">
+                {tasks.filter((t) => t.status === "done").length}/{tasks.length}{" "}
+                完了
+              </div>
             </div>
           </div>
         </div>

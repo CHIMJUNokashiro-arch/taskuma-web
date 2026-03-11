@@ -125,6 +125,7 @@ export async function GET(request: NextRequest) {
         status: t.status,
         estimated_minutes: t.estimated_minutes,
         actual_minutes: t.actual_minutes,
+        started_at: t.started_at,
         completed_at: t.completed_at,
         eisenhower_quadrant: t.eisenhower_quadrant,
       }));
