@@ -107,7 +107,14 @@ export default function AddTaskForm({
           </label>
           <select
             value={sectionId ?? ""}
-            onChange={(e) => setSectionId(e.target.value || null)}
+            onChange={(e) => {
+              const id = e.target.value || null;
+              setSectionId(id);
+              if (id && !title.trim()) {
+                const sec = sections.find((s) => s.id === id);
+                if (sec) setTitle(sec.name);
+              }
+            }}
             className="w-full rounded-lg border border-navy-600 bg-navy-900 px-3 py-2 text-white focus:border-green-accent focus:outline-none"
           >
             <option value="">未分類</option>
