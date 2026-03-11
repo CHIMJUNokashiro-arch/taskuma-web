@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import type { DailyTask } from "@/lib/types";
 import { EISENHOWER_LABELS, EISENHOWER_COLORS } from "@/lib/types";
 import EisenhowerSummary from "./EisenhowerSummary";
+import LogTabNav from "./LogTabNav";
 
 export default function LogView({ tasks }: { tasks: DailyTask[] }) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -86,6 +87,8 @@ export default function LogView({ tasks }: { tasks: DailyTask[] }) {
   return (
     <div className="mx-auto max-w-4xl p-4 sm:p-6">
       <h2 className="mb-6 text-xl font-bold text-white">ログ・履歴</h2>
+
+      <LogTabNav activeTab="daily" />
 
       {/* 統計サマリー */}
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
