@@ -65,20 +65,44 @@ export async function POST(request: NextRequest) {
     const timeMin = new Date(`${date}T00:00:00`).toISOString();
     const timeMax = new Date(`${date}T23:59:59`).toISOString();
 
-    const { data: eventsData } = await calendar.events.list({
-      calendarId: "primary",
-      timeMin,
-      timeMax,
-      singleEvents: true,
-      orderBy: "startTime",
-    });
-
-    const events = eventsData.items ?? [];
-
-    // Filter: only timed events (skip all-day events)
-    const timedEvents = events.filter(
-      (e) => e.start?.dateTime && e.end?.dateTime
+    // Get all calendars the user has selected (visible in Google Calendar UI)
+    const { data: calendarList } = await calendar.calendarList.list();
+    const selectedCalendars = (calendarList.items ?? []).filter(
+      (cal) => cal.selected && cal.id
     );
+
+    // Fetch events from all selected calendars
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allTimedEvents: any[] = [];
+    for (const cal of selectedCalendars) {
+      try {
+        const { data: eventsData } = await calendar.events.list({
+          calendarId: cal.id!,
+          timeMin,
+          timeMax,
+          singleEvents: true,
+          orderBy: "startTime",
+        });
+
+        const events = eventsData.items ?? [];
+        // Filter: only timed events (skip all-day events)
+        const timed = events.filter(
+          (e) => e.start?.dateTime && e.end?.dateTime
+        );
+        allTimedEvents.push(...timed);
+      } catch (calError) {
+        // Skip calendars that fail (e.g. permission issues)
+        console.warn(`Failed to fetch calendar ${cal.id}:`, calError);
+      }
+    }
+
+    // Deduplicate by event id (same event can appear in multiple calendars)
+    const seenEventIds = new Set<string>();
+    const timedEvents = allTimedEvents.filter((e) => {
+      if (!e.id || seenEventIds.has(e.id)) return false;
+      seenEventIds.add(e.id);
+      return true;
+    });
 
     // Get existing google_event_ids for this date to skip duplicates
     const { data: existingTasks } = await supabase
@@ -136,7 +160,8 @@ export async function POST(request: NextRequest) {
       imported,
       skipped,
       total: timedEvents.length,
-      message: `${imported}件インポート${skipped > 0 ? `（${skipped}件スキップ）` : ""}`,
+      calendars: selectedCalendars.length,
+      message: `${selectedCalendars.length}個のカレンダーから${imported}件インポート${skipped > 0 ? `（${skipped}件スキップ）` : ""}`,
     });
   } catch (error) {
     console.error("Google Calendar import error:", error);
