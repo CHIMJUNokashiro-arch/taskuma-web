@@ -267,7 +267,7 @@ export default function TaskCard({
               完了
             </button>
           )}
-          {task.status !== "in_progress" && onAddToRoutine && (
+          {onAddToRoutine && (
             <button
               onClick={() => onAddToRoutine(task)}
               className="rounded-lg p-1.5 text-gray-600 transition hover:bg-navy-700 hover:text-green-accent"

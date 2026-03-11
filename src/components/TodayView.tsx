@@ -51,6 +51,7 @@ export default function TodayView({
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [googleConnected, setGoogleConnected] = useState(false);
   const [routineMessage, setRoutineMessage] = useState<string | null>(null);
+  const [timelineStartTime, setTimelineStartTime] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -396,7 +397,7 @@ export default function TodayView({
         <EisenhowerSummary tasks={tasks} />
 
         {/* タイムライン表示 */}
-        <TimelineView tasks={tasks} />
+        <TimelineView tasks={tasks} onTimeClick={setTimelineStartTime} />
 
         {/* 日付表示 */}
         <div className="mb-6 flex items-center justify-between">
@@ -512,7 +513,13 @@ export default function TodayView({
         })}
 
         {/* タスク追加フォーム */}
-        <AddTaskForm sections={sections} onAdd={handleAddTask} date={date} />
+        <AddTaskForm
+          sections={sections}
+          onAdd={handleAddTask}
+          date={date}
+          initialStartTime={timelineStartTime}
+          onResetInitialTime={() => setTimelineStartTime(null)}
+        />
 
         {/* AIチャットパネル */}
         <AIChatPanel />

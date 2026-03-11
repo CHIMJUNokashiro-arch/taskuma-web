@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Section, EisenhowerQuadrant, TimeBlock } from "@/lib/types";
 import {
   EISENHOWER_QUADRANTS,
@@ -15,6 +15,8 @@ export default function AddTaskForm({
   sections,
   onAdd,
   date,
+  initialStartTime,
+  onResetInitialTime,
 }: {
   sections: Section[];
   onAdd: (
@@ -26,6 +28,8 @@ export default function AddTaskForm({
     timeBlock: TimeBlock | null
   ) => void;
   date: string;
+  initialStartTime?: string | null;
+  onResetInitialTime?: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -36,6 +40,29 @@ export default function AddTaskForm({
   const [showTimeRange, setShowTimeRange] = useState(false);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // タイムラインからの時間プリフィル
+  useEffect(() => {
+    if (initialStartTime) {
+      setIsOpen(true);
+      setShowTimeRange(true);
+      setStartTime(initialStartTime);
+      // 開始時間 + 見積もり時間から終了時間を自動計算
+      const [h, m] = initialStartTime.split(":").map(Number);
+      const endMinutes = h * 60 + m + estimated;
+      const endH = Math.floor(endMinutes / 60);
+      const endM = endMinutes % 60;
+      setEndTime(
+        `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`
+      );
+      // フォームにスクロール
+      setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+      onResetInitialTime?.();
+    }
+  }, [initialStartTime, estimated, onResetInitialTime]);
 
   const calcActualMinutes = () => {
     if (!startTime || !endTime) return 0;
@@ -83,6 +110,7 @@ export default function AddTaskForm({
 
   return (
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
       className="mt-4 rounded-xl border border-navy-600 bg-navy-800 p-4"
     >

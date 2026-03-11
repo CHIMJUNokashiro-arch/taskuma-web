@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import type { DailyTask } from "@/lib/types";
 import { EISENHOWER_COLORS } from "@/lib/types";
 
@@ -8,8 +8,17 @@ const TIMELINE_START = 6; // 6:00
 const TIMELINE_END = 24; // 24:00
 const TOTAL_HOURS = TIMELINE_END - TIMELINE_START;
 
-export default function TimelineView({ tasks }: { tasks: DailyTask[] }) {
+export default function TimelineView({
+  tasks,
+  onTimeClick,
+}: {
+  tasks: DailyTask[];
+  onTimeClick?: (startTime: string) => void;
+}) {
   const [now, setNow] = useState(new Date());
+  const [hoverTime, setHoverTime] = useState<string | null>(null);
+  const [hoverX, setHoverX] = useState<number>(0);
+  const barRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 60000);
@@ -60,8 +69,45 @@ export default function TimelineView({ tasks }: { tasks: DailyTask[] }) {
       .filter(Boolean);
   }, [tasks, now]);
 
-  // タイムラインに表示するタスクがなければ非表示
-  if (blocks.length === 0) return null;
+  const calcTimeFromPosition = useCallback(
+    (clientX: number) => {
+      if (!barRef.current) return null;
+      const rect = barRef.current.getBoundingClientRect();
+      const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const totalMinutes = (TIMELINE_START + ratio * TOTAL_HOURS) * 60;
+      // 15分単位に丸め
+      const roundedMinutes = Math.round(totalMinutes / 15) * 15;
+      const h = Math.floor(roundedMinutes / 60);
+      const m = roundedMinutes % 60;
+      return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+    },
+    []
+  );
+
+  const handleBarClick = useCallback(
+    (e: React.MouseEvent) => {
+      const time = calcTimeFromPosition(e.clientX);
+      if (time && onTimeClick) {
+        onTimeClick(time);
+      }
+    },
+    [calcTimeFromPosition, onTimeClick]
+  );
+
+  const handleBarMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!barRef.current) return;
+      const rect = barRef.current.getBoundingClientRect();
+      const time = calcTimeFromPosition(e.clientX);
+      setHoverTime(time);
+      setHoverX(e.clientX - rect.left);
+    },
+    [calcTimeFromPosition]
+  );
+
+  const handleBarMouseLeave = useCallback(() => {
+    setHoverTime(null);
+  }, []);
 
   const nowHour = now.getHours() + now.getMinutes() / 60;
   const nowPosition = ((nowHour - TIMELINE_START) / TOTAL_HOURS) * 100;
@@ -99,7 +145,13 @@ export default function TimelineView({ tasks }: { tasks: DailyTask[] }) {
       </div>
 
       {/* タイムラインバー */}
-      <div className="relative h-8 rounded-lg bg-navy-900">
+      <div
+        ref={barRef}
+        className={`relative h-8 rounded-lg bg-navy-900 ${onTimeClick ? "cursor-pointer" : ""}`}
+        onClick={onTimeClick ? handleBarClick : undefined}
+        onMouseMove={onTimeClick ? handleBarMouseMove : undefined}
+        onMouseLeave={onTimeClick ? handleBarMouseLeave : undefined}
+      >
         {/* タスクブロック */}
         {blocks.map((block) => {
           if (!block) return null;
@@ -115,7 +167,7 @@ export default function TimelineView({ tasks }: { tasks: DailyTask[] }) {
           return (
             <div
               key={block.id}
-              className={`group absolute top-1 h-6 rounded ${colorClass} cursor-default opacity-80 transition hover:opacity-100`}
+              className={`group absolute top-1 h-6 rounded ${colorClass} pointer-events-none opacity-80`}
               style={{
                 left: `${block.left}%`,
                 width: `${block.width}%`,
@@ -134,13 +186,37 @@ export default function TimelineView({ tasks }: { tasks: DailyTask[] }) {
         {/* 現在時刻インジケーター */}
         {showNowLine && (
           <div
-            className="absolute top-0 h-full w-0.5 bg-green-accent"
+            className="pointer-events-none absolute top-0 h-full w-0.5 bg-green-accent"
             style={{ left: `${nowPosition}%` }}
           >
             <div className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-green-accent" />
           </div>
         )}
+
+        {/* ホバー時の時間表示 + 「+」インジケーター */}
+        {onTimeClick && hoverTime && (
+          <>
+            <div
+              className="pointer-events-none absolute top-0 h-full w-px bg-green-accent/40"
+              style={{ left: `${hoverX}px` }}
+            />
+            <div
+              className="pointer-events-none absolute -top-7 z-20 flex items-center gap-1 rounded bg-green-accent px-2 py-0.5 text-[10px] font-semibold text-navy-950 shadow-lg"
+              style={{ left: `${hoverX}px`, transform: "translateX(-50%)" }}
+            >
+              <span>+</span>
+              <span>{hoverTime}</span>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* クリックヒント */}
+      {onTimeClick && (
+        <p className="mt-1.5 text-[10px] text-gray-600">
+          タイムラインをクリックしてタスクを追加
+        </p>
+      )}
     </div>
   );
 }
