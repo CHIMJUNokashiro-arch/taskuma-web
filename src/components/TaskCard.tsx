@@ -9,13 +9,19 @@ export default function TaskCard({
   onStart,
   onComplete,
   onDelete,
+  onUpdate,
 }: {
   task: DailyTask;
   onStart: (id: string) => void;
   onComplete: (id: string) => void;
   onDelete: (id: string) => void;
+  onUpdate?: (id: string, updates: Partial<DailyTask>) => void;
 }) {
   const [elapsed, setElapsed] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [editStartTime, setEditStartTime] = useState("");
+  const [editEstimated, setEditEstimated] = useState(task.estimated_minutes);
 
   useEffect(() => {
     if (task.status !== "in_progress" || !task.started_at) {
@@ -49,6 +55,110 @@ export default function TaskCard({
     done: "border-navy-700 bg-navy-900 opacity-60",
   };
 
+  const startEditing = () => {
+    if (!onUpdate) return;
+    setEditTitle(task.title);
+    setEditEstimated(task.estimated_minutes);
+    // started_at → HH:mm形式に変換
+    if (task.started_at) {
+      const d = new Date(task.started_at);
+      setEditStartTime(
+        `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`
+      );
+    } else {
+      setEditStartTime("");
+    }
+    setEditing(true);
+  };
+
+  const handleSave = () => {
+    if (!onUpdate) return;
+    const updates: Partial<DailyTask> = {};
+
+    if (editTitle.trim() && editTitle.trim() !== task.title) {
+      updates.title = editTitle.trim();
+    }
+    if (editEstimated !== task.estimated_minutes) {
+      updates.estimated_minutes = editEstimated;
+    }
+    if (editStartTime && task.started_at) {
+      const orig = new Date(task.started_at);
+      const [h, m] = editStartTime.split(":").map(Number);
+      const updated = new Date(orig);
+      updated.setHours(h, m, 0, 0);
+      if (updated.toISOString() !== orig.toISOString()) {
+        updates.started_at = updated.toISOString();
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      onUpdate(task.id, updates);
+    }
+    setEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditing(false);
+  };
+
+  // 編集モード
+  if (editing) {
+    return (
+      <div className={`rounded-xl border p-4 transition ${statusStyles[task.status]}`}>
+        <div className="space-y-3">
+          <input
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            autoFocus
+            className="w-full rounded-lg border border-navy-600 bg-navy-900 px-3 py-1.5 text-sm text-white focus:border-green-accent focus:outline-none"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSave();
+              if (e.key === "Escape") handleCancel();
+            }}
+          />
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <label className="text-[10px] text-gray-500">見積(分)</label>
+              <input
+                type="number"
+                value={editEstimated}
+                onChange={(e) => setEditEstimated(Number(e.target.value))}
+                min={1}
+                className="w-16 rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
+              />
+            </div>
+            {task.started_at && (
+              <div className="flex items-center gap-1.5">
+                <label className="text-[10px] text-gray-500">開始</label>
+                <input
+                  type="time"
+                  value={editStartTime}
+                  onChange={(e) => setEditStartTime(e.target.value)}
+                  className="rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              className="rounded-lg bg-green-accent px-3 py-1 text-xs font-semibold text-navy-950 transition hover:bg-green-accent-dark"
+            >
+              保存
+            </button>
+            <button
+              onClick={handleCancel}
+              className="rounded-lg border border-navy-600 px-3 py-1 text-xs text-gray-400 transition hover:bg-navy-700"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`rounded-xl border p-4 transition ${statusStyles[task.status]}`}
@@ -66,7 +176,9 @@ export default function TaskCard({
               <span className="text-green-accent">&#10003;</span>
             )}
             <h3
-              className={`font-medium ${task.status === "done" ? "text-gray-500 line-through" : "text-white"}`}
+              className={`font-medium ${task.status === "done" ? "text-gray-500 line-through" : "text-white"} ${onUpdate ? "cursor-pointer hover:text-green-accent" : ""}`}
+              onClick={onUpdate ? startEditing : undefined}
+              title={onUpdate ? "クリックで編集" : undefined}
             >
               {task.title}
             </h3>

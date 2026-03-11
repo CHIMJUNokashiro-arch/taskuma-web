@@ -202,6 +202,23 @@ export default function TodayView({
     [supabase]
   );
 
+  const handleUpdateTask = useCallback(
+    async (taskId: string, updates: Partial<DailyTask>) => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id, user_id, created_at, ...rest } = updates as DailyTask;
+      const dbUpdates = Object.fromEntries(
+        Object.entries(updates).filter(
+          ([key]) => !["id", "user_id", "created_at"].includes(key)
+        )
+      );
+      await supabase
+        .from("daily_tasks")
+        .update(dbUpdates)
+        .eq("id", taskId);
+    },
+    [supabase]
+  );
+
   const handleAddTask = useCallback(
     async (
       title: string,
@@ -410,6 +427,7 @@ export default function TodayView({
                         onStart={handleStartTask}
                         onComplete={handleCompleteTask}
                         onDelete={handleDeleteTask}
+                        onUpdate={handleUpdateTask}
                       />
                     ))}
                   </div>
@@ -424,6 +442,7 @@ export default function TodayView({
                       onStart={handleStartTask}
                       onComplete={handleCompleteTask}
                       onDelete={handleDeleteTask}
+                      onUpdate={handleUpdateTask}
                     />
                   ))}
                 </div>

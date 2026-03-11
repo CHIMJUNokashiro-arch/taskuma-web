@@ -10,11 +10,13 @@ export default function SortableTaskCard({
   onStart,
   onComplete,
   onDelete,
+  onUpdate,
 }: {
   task: DailyTask;
   onStart: (id: string) => void;
   onComplete: (id: string) => void;
   onDelete: (id: string) => void;
+  onUpdate?: (id: string, updates: Partial<DailyTask>) => void;
 }) {
   const {
     attributes,
@@ -54,6 +56,7 @@ export default function SortableTaskCard({
           onStart={onStart}
           onComplete={onComplete}
           onDelete={onDelete}
+          onUpdate={onUpdate}
         />
       </div>
     </div>
