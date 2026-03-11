@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { DailyTask } from "@/lib/types";
+import { EISENHOWER_LABELS, EISENHOWER_COLORS } from "@/lib/types";
 
 export default function TaskCard({
   task,
@@ -69,6 +70,13 @@ export default function TaskCard({
             >
               {task.title}
             </h3>
+            {task.eisenhower_quadrant && (
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${EISENHOWER_COLORS[task.eisenhower_quadrant].badge}`}
+              >
+                {EISENHOWER_LABELS[task.eisenhower_quadrant]}
+              </span>
+            )}
           </div>
 
           <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">

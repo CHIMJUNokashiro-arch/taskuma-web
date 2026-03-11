@@ -47,6 +47,7 @@ export async function POST(request: Request) {
       date: targetDate,
       title: r.title,
       estimated_minutes: r.estimated_minutes,
+      eisenhower_quadrant: r.eisenhower_quadrant ?? null,
       sort_order: r.sort_order,
       status: "pending" as const,
     }));

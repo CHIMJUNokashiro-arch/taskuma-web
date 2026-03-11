@@ -16,6 +16,8 @@ export default function SettingsView({
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleEmail, setGoogleEmail] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
   const supabase = createClient();
 
   useEffect(() => {
@@ -63,6 +65,32 @@ export default function SettingsView({
     },
     [supabase]
   );
+
+  const handleStartEdit = useCallback((section: Section) => {
+    setEditingId(section.id);
+    setEditName(section.name);
+  }, []);
+
+  const handleSaveEdit = useCallback(
+    async (id: string) => {
+      const trimmed = editName.trim();
+      if (!trimmed) {
+        setEditingId(null);
+        return;
+      }
+      await supabase.from("sections").update({ name: trimmed }).eq("id", id);
+      setSections((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, name: trimmed } : s))
+      );
+      setEditingId(null);
+    },
+    [editName, supabase]
+  );
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingId(null);
+    setEditName("");
+  }, []);
 
   const handleGenerateRoutines = useCallback(async () => {
     setGeneratingRoutines(true);
@@ -149,13 +177,60 @@ export default function SettingsView({
               key={section.id}
               className="flex items-center justify-between rounded-lg border border-navy-600 p-3"
             >
-              <span className="text-white">{section.name}</span>
-              <button
-                onClick={() => handleDeleteSection(section.id)}
-                className="text-sm text-gray-500 transition hover:text-red-400"
-              >
-                削除
-              </button>
+              {editingId === section.id ? (
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveEdit(section.id);
+                    if (e.key === "Escape") handleCancelEdit();
+                  }}
+                  onBlur={() => handleSaveEdit(section.id)}
+                  autoFocus
+                  className="flex-1 rounded border border-green-accent bg-navy-900 px-2 py-1 text-white focus:outline-none"
+                />
+              ) : (
+                <span
+                  className="cursor-pointer text-white"
+                  onDoubleClick={() => handleStartEdit(section)}
+                >
+                  {section.name}
+                </span>
+              )}
+              <div className="ml-2 flex gap-2">
+                {editingId === section.id ? (
+                  <>
+                    <button
+                      onClick={() => handleSaveEdit(section.id)}
+                      className="text-sm text-green-accent transition hover:text-green-400"
+                    >
+                      保存
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="text-sm text-gray-500 transition hover:text-gray-300"
+                    >
+                      取消
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleStartEdit(section)}
+                      className="text-sm text-gray-500 transition hover:text-green-accent"
+                    >
+                      編集
+                    </button>
+                    <button
+                      onClick={() => handleDeleteSection(section.id)}
+                      className="text-sm text-gray-500 transition hover:text-red-400"
+                    >
+                      削除
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           ))}
           {sections.length === 0 && (

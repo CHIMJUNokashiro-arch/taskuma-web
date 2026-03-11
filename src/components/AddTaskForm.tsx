@@ -1,27 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import type { Section } from "@/lib/types";
+import type { Section, EisenhowerQuadrant } from "@/lib/types";
+import {
+  EISENHOWER_QUADRANTS,
+  EISENHOWER_LABELS,
+  EISENHOWER_COLORS,
+} from "@/lib/types";
 
 export default function AddTaskForm({
   sections,
   onAdd,
 }: {
   sections: Section[];
-  onAdd: (title: string, estimatedMinutes: number, sectionId: string | null) => void;
+  onAdd: (
+    title: string,
+    estimatedMinutes: number,
+    sectionId: string | null,
+    eisenhowerQuadrant: EisenhowerQuadrant | null
+  ) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [estimated, setEstimated] = useState(30);
   const [sectionId, setSectionId] = useState<string | null>(null);
+  const [quadrant, setQuadrant] = useState<EisenhowerQuadrant | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    onAdd(title.trim(), estimated, sectionId);
+    onAdd(title.trim(), estimated, sectionId, quadrant);
     setTitle("");
     setEstimated(30);
     setSectionId(null);
+    setQuadrant(null);
     setIsOpen(false);
   };
 
@@ -79,6 +91,28 @@ export default function AddTaskForm({
               </option>
             ))}
           </select>
+        </div>
+      </div>
+      {/* アイゼンハワー象限セレクター */}
+      <div className="mb-3">
+        <label className="mb-1 block text-xs text-gray-400">
+          重要度・緊急度
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {EISENHOWER_QUADRANTS.map((q) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() => setQuadrant(quadrant === q ? null : q)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                quadrant === q
+                  ? `${EISENHOWER_COLORS[q].bg} ${EISENHOWER_COLORS[q].text} ${EISENHOWER_COLORS[q].border} border`
+                  : "border border-navy-600 text-gray-500 hover:border-navy-400"
+              }`}
+            >
+              {EISENHOWER_LABELS[q]}
+            </button>
+          ))}
         </div>
       </div>
       <div className="flex gap-2">

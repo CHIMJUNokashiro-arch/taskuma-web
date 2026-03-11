@@ -2,7 +2,12 @@
 
 import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { TaskTemplate, Section } from "@/lib/types";
+import type { TaskTemplate, Section, EisenhowerQuadrant } from "@/lib/types";
+import {
+  EISENHOWER_QUADRANTS,
+  EISENHOWER_LABELS,
+  EISENHOWER_COLORS,
+} from "@/lib/types";
 
 export default function TemplatesView({
   initialTemplates,
@@ -18,6 +23,7 @@ export default function TemplatesView({
   const [estimated, setEstimated] = useState(30);
   const [sectionId, setSectionId] = useState<string | null>(null);
   const [isRoutine, setIsRoutine] = useState(false);
+  const [quadrant, setQuadrant] = useState<EisenhowerQuadrant | null>(null);
   const supabase = createClient();
 
   const resetForm = () => {
@@ -25,6 +31,7 @@ export default function TemplatesView({
     setEstimated(30);
     setSectionId(null);
     setIsRoutine(false);
+    setQuadrant(null);
     setIsAdding(false);
     setEditingId(null);
   };
@@ -49,6 +56,7 @@ export default function TemplatesView({
         estimated_minutes: estimated,
         section_id: sectionId,
         is_routine: isRoutine,
+        eisenhower_quadrant: quadrant,
         sort_order: maxSort + 1,
       })
       .select()
@@ -58,7 +66,7 @@ export default function TemplatesView({
       setTemplates((prev) => [...prev, data]);
       resetForm();
     }
-  }, [title, estimated, sectionId, isRoutine, templates, supabase]);
+  }, [title, estimated, sectionId, isRoutine, quadrant, templates, supabase]);
 
   const handleUpdate = useCallback(
     async (id: string) => {
@@ -69,6 +77,7 @@ export default function TemplatesView({
           estimated_minutes: estimated,
           section_id: sectionId,
           is_routine: isRoutine,
+          eisenhower_quadrant: quadrant,
         })
         .eq("id", id);
 
@@ -81,13 +90,14 @@ export default function TemplatesView({
                 estimated_minutes: estimated,
                 section_id: sectionId,
                 is_routine: isRoutine,
+                eisenhower_quadrant: quadrant,
               }
             : t
         )
       );
       resetForm();
     },
-    [title, estimated, sectionId, isRoutine, supabase]
+    [title, estimated, sectionId, isRoutine, quadrant, supabase]
   );
 
   const handleDelete = useCallback(
@@ -104,6 +114,7 @@ export default function TemplatesView({
     setEstimated(template.estimated_minutes);
     setSectionId(template.section_id);
     setIsRoutine(template.is_routine);
+    setQuadrant(template.eisenhower_quadrant);
   };
 
   const getSectionName = (id: string | null) =>
@@ -166,6 +177,28 @@ export default function TemplatesView({
               </select>
             </div>
           </div>
+          {/* アイゼンハワー象限セレクター */}
+          <div className="mb-3">
+            <label className="mb-1 block text-xs text-gray-400">
+              重要度・緊急度
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {EISENHOWER_QUADRANTS.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => setQuadrant(quadrant === q ? null : q)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    quadrant === q
+                      ? `${EISENHOWER_COLORS[q].bg} ${EISENHOWER_COLORS[q].text} ${EISENHOWER_COLORS[q].border} border`
+                      : "border border-navy-600 text-gray-500 hover:border-navy-400"
+                  }`}
+                >
+                  {EISENHOWER_LABELS[q]}
+                </button>
+              ))}
+            </div>
+          </div>
           <label className="mb-4 flex items-center gap-2 text-sm text-gray-300">
             <input
               type="checkbox"
@@ -209,6 +242,13 @@ export default function TemplatesView({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-medium text-white">{template.title}</h3>
+                {template.eisenhower_quadrant && (
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${EISENHOWER_COLORS[template.eisenhower_quadrant].badge}`}
+                  >
+                    {EISENHOWER_LABELS[template.eisenhower_quadrant]}
+                  </span>
+                )}
                 {template.is_routine && (
                   <span className="rounded-full bg-green-accent/10 px-2 py-0.5 text-xs text-green-accent">
                     ルーティン

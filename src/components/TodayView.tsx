@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { DailyTask, Section } from "@/lib/types";
+import type { DailyTask, Section, EisenhowerQuadrant } from "@/lib/types";
 import SortableTaskCard from "./SortableTaskCard";
 import TaskCard from "./TaskCard";
 import AddTaskForm from "./AddTaskForm";
 import EndTimeBar from "./EndTimeBar";
+import EisenhowerSummary from "./EisenhowerSummary";
+import TimelineView from "./TimelineView";
 import AIChatPanel from "./AIChatPanel";
 import {
   DndContext,
@@ -201,7 +203,12 @@ export default function TodayView({
   );
 
   const handleAddTask = useCallback(
-    async (title: string, estimatedMinutes: number, sectionId: string | null) => {
+    async (
+      title: string,
+      estimatedMinutes: number,
+      sectionId: string | null,
+      eisenhowerQuadrant: EisenhowerQuadrant | null
+    ) => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -220,6 +227,7 @@ export default function TodayView({
           title,
           estimated_minutes: estimatedMinutes,
           section_id: sectionId,
+          eisenhower_quadrant: eisenhowerQuadrant,
           sort_order: maxSort + 1,
           status: "pending",
         })
@@ -295,6 +303,12 @@ export default function TodayView({
       <div className="mx-auto max-w-3xl p-4 pb-24 sm:p-6">
         {/* 終了予定時刻バー */}
         <EndTimeBar tasks={tasks} />
+
+        {/* マトリクス分析サマリー */}
+        <EisenhowerSummary tasks={tasks} />
+
+        {/* タイムライン表示 */}
+        <TimelineView tasks={tasks} />
 
         {/* 日付表示 */}
         <div className="mb-6 flex items-center justify-between">

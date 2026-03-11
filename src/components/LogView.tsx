@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from "react";
 import type { DailyTask } from "@/lib/types";
+import { EISENHOWER_LABELS, EISENHOWER_COLORS } from "@/lib/types";
+import EisenhowerSummary from "./EisenhowerSummary";
 
 export default function LogView({ tasks }: { tasks: DailyTask[] }) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -174,53 +176,65 @@ export default function LogView({ tasks }: { tasks: DailyTask[] }) {
 
       {/* 選択日のタスクリスト */}
       {selectedDate && (
-        <div className="rounded-xl bg-navy-800 p-4">
-          <h3 className="mb-3 font-semibold text-white">
-            {new Date(selectedDate + "T00:00:00").toLocaleDateString("ja-JP", {
-              month: "long",
-              day: "numeric",
-              weekday: "short",
-            })}
-          </h3>
-          {selectedTasks.length === 0 ? (
-            <p className="text-sm text-gray-500">この日の記録はありません</p>
-          ) : (
-            <div className="space-y-2">
-              {selectedTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-center justify-between rounded-lg border border-navy-600 p-3"
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={
-                        task.status === "done"
-                          ? "text-green-accent"
-                          : "text-gray-600"
-                      }
-                    >
-                      {task.status === "done" ? "\u2713" : "\u25CB"}
-                    </span>
-                    <span
-                      className={
-                        task.status === "done"
-                          ? "text-gray-400 line-through"
-                          : "text-white"
-                      }
-                    >
-                      {task.title}
-                    </span>
+        <>
+          {/* マトリクス分析（選択日） */}
+          <EisenhowerSummary tasks={selectedTasks} />
+
+          <div className="rounded-xl bg-navy-800 p-4">
+            <h3 className="mb-3 font-semibold text-white">
+              {new Date(selectedDate + "T00:00:00").toLocaleDateString("ja-JP", {
+                month: "long",
+                day: "numeric",
+                weekday: "short",
+              })}
+            </h3>
+            {selectedTasks.length === 0 ? (
+              <p className="text-sm text-gray-500">この日の記録はありません</p>
+            ) : (
+              <div className="space-y-2">
+                {selectedTasks.map((task) => (
+                  <div
+                    key={task.id}
+                    className="flex items-center justify-between rounded-lg border border-navy-600 p-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={
+                          task.status === "done"
+                            ? "text-green-accent"
+                            : "text-gray-600"
+                        }
+                      >
+                        {task.status === "done" ? "\u2713" : "\u25CB"}
+                      </span>
+                      <span
+                        className={
+                          task.status === "done"
+                            ? "text-gray-400 line-through"
+                            : "text-white"
+                        }
+                      >
+                        {task.title}
+                      </span>
+                      {task.eisenhower_quadrant && (
+                        <span
+                          className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${EISENHOWER_COLORS[task.eisenhower_quadrant].badge}`}
+                        >
+                          {EISENHOWER_LABELS[task.eisenhower_quadrant]}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {task.actual_minutes != null
+                        ? `${task.actual_minutes}分`
+                        : `${task.estimated_minutes}分`}
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {task.actual_minutes != null
-                      ? `${task.actual_minutes}分`
-                      : `${task.estimated_minutes}分`}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

@@ -83,6 +83,13 @@ CREATE UNIQUE INDEX idx_daily_tasks_google_event_unique
   ON daily_tasks(user_id, date, google_event_id)
   WHERE google_event_id IS NOT NULL;
 
+-- Eisenhower Matrix quadrant columns
+ALTER TABLE daily_tasks ADD COLUMN eisenhower_quadrant TEXT
+  CHECK (eisenhower_quadrant IN ('urgent_important', 'important', 'urgent', 'other'));
+
+ALTER TABLE task_templates ADD COLUMN eisenhower_quadrant TEXT
+  CHECK (eisenhower_quadrant IN ('urgent_important', 'important', 'urgent', 'other'));
+
 -- Realtime subscriptions
 ALTER PUBLICATION supabase_realtime ADD TABLE daily_tasks;
 ALTER PUBLICATION supabase_realtime ADD TABLE sections;
