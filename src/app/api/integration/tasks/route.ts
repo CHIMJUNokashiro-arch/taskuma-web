@@ -259,6 +259,122 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// ===== PATCH: タスクステータス更新 =====
+
+export async function PATCH(request: NextRequest) {
+  if (!validateApiKey(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userId = getUserId();
+  if (!userId) {
+    return NextResponse.json(
+      { error: "TASKMA_USER_ID not configured" },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { taskId, status, actual_minutes } = body as {
+      taskId: string;
+      status?: string;
+      actual_minutes?: number;
+    };
+
+    if (!taskId) {
+      return NextResponse.json(
+        { error: "taskId required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate status if provided
+    const validStatuses = ["pending", "in_progress", "done"];
+    if (status && !validStatuses.includes(status)) {
+      return NextResponse.json(
+        { error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    const supabase = getServiceClient();
+
+    // Verify task belongs to user
+    const { data: task, error: fetchError } = await supabase
+      .from("daily_tasks")
+      .select("id, user_id, status")
+      .eq("id", taskId)
+      .eq("user_id", userId)
+      .single();
+
+    if (fetchError || !task) {
+      return NextResponse.json(
+        { error: "Task not found" },
+        { status: 404 }
+      );
+    }
+
+    // Build update payload
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updates: Record<string, any> = {};
+    if (status) {
+      updates.status = status;
+      // When marking as done, set completed_at
+      if (status === "done") {
+        updates.completed_at = new Date().toISOString();
+      }
+      // When un-completing, clear completed_at
+      if (status !== "done" && task.status === "done") {
+        updates.completed_at = null;
+      }
+      // When starting, set started_at if not already set
+      if (status === "in_progress") {
+        const { data: fullTask } = await supabase
+          .from("daily_tasks")
+          .select("started_at")
+          .eq("id", taskId)
+          .single();
+        if (!fullTask?.started_at) {
+          updates.started_at = new Date().toISOString();
+        }
+      }
+    }
+    if (actual_minutes !== undefined) {
+      updates.actual_minutes = actual_minutes;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json(
+        { error: "No fields to update. Provide status or actual_minutes." },
+        { status: 400 }
+      );
+    }
+
+    const { error: updateError } = await supabase
+      .from("daily_tasks")
+      .update(updates)
+      .eq("id", taskId)
+      .eq("user_id", userId);
+
+    if (updateError) {
+      console.error("Integration PATCH error:", updateError);
+      return NextResponse.json(
+        { error: "Failed to update task" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ updated: true, taskId, ...updates });
+  } catch (err) {
+    console.error("Integration PATCH error:", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
 // ===== DELETE: タスク削除 =====
 
 export async function DELETE(request: NextRequest) {
