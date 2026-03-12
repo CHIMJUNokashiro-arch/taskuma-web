@@ -117,8 +117,16 @@ export async function POST(request: NextRequest) {
       exported: true,
       eventId: event.data.id,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Google Calendar export error:", error);
+    const status = (error as { code?: number })?.code ??
+                   (error as { response?: { status?: number } })?.response?.status;
+    if (status === 403 || status === 401) {
+      return NextResponse.json(
+        { error: "Googleカレンダーの書き込み権限がありません。設定で再接続してください。" },
+        { status: 403 }
+      );
+    }
     return NextResponse.json(
       { error: "Failed to export to Google Calendar" },
       { status: 500 }

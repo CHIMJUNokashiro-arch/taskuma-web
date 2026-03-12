@@ -85,9 +85,15 @@ export async function POST(request: NextRequest) {
 
   let exported = 0;
   let failed = 0;
+  let needsReconnect = false;
 
   for (const task of tasks) {
     try {
+      if (!task.completed_at) {
+        failed++;
+        continue;
+      }
+
       const endTime = new Date(task.completed_at);
       let startTime: Date;
 
@@ -121,10 +127,24 @@ export async function POST(request: NextRequest) {
           .eq("id", task.id);
         exported++;
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(`Export failed for task ${task.id}:`, error);
+      // 権限不足 (403) or 認証エラー (401) → 再接続が必要
+      const status = (error as { code?: number })?.code ??
+                     (error as { response?: { status?: number } })?.response?.status;
+      if (status === 403 || status === 401) {
+        needsReconnect = true;
+        break; // 権限エラーは全タスクに影響するので中断
+      }
       failed++;
     }
+  }
+
+  if (needsReconnect) {
+    return NextResponse.json(
+      { error: "Googleカレンダーの書き込み権限がありません。設定画面でGoogleを一度切断→再接続してください。" },
+      { status: 403 }
+    );
   }
 
   return NextResponse.json({

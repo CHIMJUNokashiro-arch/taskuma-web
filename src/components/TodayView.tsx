@@ -66,6 +66,23 @@ export default function TodayView({
       .catch(() => {});
   }, []);
 
+  // ルーティンタスク自動生成（日付ごとに1回）
+  useEffect(() => {
+    fetch("/api/routines/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.count > 0) {
+          // 新しいルーティンが生成された場合、ページをリフレッシュして取得
+          router.refresh();
+        }
+      })
+      .catch(() => {});
+  }, [date, router]);
+
   // ローカル日付ヘルパー
   const getLocalToday = useCallback(() => {
     const now = new Date();
