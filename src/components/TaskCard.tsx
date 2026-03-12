@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { DailyTask, TimeBlock } from "@/lib/types";
+import type { DailyTask, Section, TimeBlock } from "@/lib/types";
 import {
   EISENHOWER_LABELS,
   EISENHOWER_COLORS,
@@ -18,6 +18,7 @@ export default function TaskCard({
   onUpdate,
   onAddToRoutine,
   onRevert,
+  sections,
 }: {
   task: DailyTask;
   onStart: (id: string) => void;
@@ -26,6 +27,7 @@ export default function TaskCard({
   onUpdate?: (id: string, updates: Partial<DailyTask>) => void;
   onAddToRoutine?: (task: DailyTask) => void;
   onRevert?: (id: string) => void;
+  sections?: Section[];
 }) {
   const [elapsed, setElapsed] = useState(0);
   const [editing, setEditing] = useState(false);
@@ -34,6 +36,7 @@ export default function TaskCard({
   const [editEstimated, setEditEstimated] = useState(task.estimated_minutes);
   const [editTimeBlock, setEditTimeBlock] = useState<TimeBlock | null>(task.time_block);
   const [editEndTime, setEditEndTime] = useState("");
+  const [editSectionId, setEditSectionId] = useState<string | null>(task.section_id);
 
   useEffect(() => {
     if (task.status !== "in_progress" || !task.started_at) {
@@ -89,6 +92,7 @@ export default function TaskCard({
       setEditEndTime("");
     }
     setEditTimeBlock(task.time_block);
+    setEditSectionId(task.section_id);
     setEditing(true);
   };
 
@@ -169,6 +173,10 @@ export default function TaskCard({
       updates.time_block = editTimeBlock;
     }
 
+    if (editSectionId !== task.section_id) {
+      updates.section_id = editSectionId;
+    }
+
     if (Object.keys(updates).length > 0) {
       onUpdate(task.id, updates);
     }
@@ -229,6 +237,23 @@ export default function TaskCard({
               </div>
             )}
           </div>
+          {sections && sections.length > 0 && (
+            <div>
+              <label className="mb-1 block text-[10px] text-gray-500">セクション</label>
+              <select
+                value={editSectionId ?? ""}
+                onChange={(e) => setEditSectionId(e.target.value || null)}
+                className="w-full rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
+              >
+                <option value="">未分類</option>
+                {sections.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="mb-1 block text-[10px] text-gray-500">タイムブロック</label>
             <div className="flex flex-wrap gap-1">

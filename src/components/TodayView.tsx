@@ -682,6 +682,7 @@ export default function TodayView({
                         onUpdate={handleUpdateTask}
                         onAddToRoutine={handleAddToRoutine}
                         onRevert={handleRevertTask}
+                        sections={sections}
                       />
                     ))}
                   </div>
@@ -699,6 +700,7 @@ export default function TodayView({
                       onUpdate={handleUpdateTask}
                       onAddToRoutine={handleAddToRoutine}
                       onRevert={handleRevertTask}
+                      sections={sections}
                     />
                   ))}
                 </div>

@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { DailyTask } from "@/lib/types";
+import type { DailyTask, Section } from "@/lib/types";
 import TaskCard from "./TaskCard";
 
 export default function SortableTaskCard({
@@ -13,6 +13,7 @@ export default function SortableTaskCard({
   onUpdate,
   onAddToRoutine,
   onRevert,
+  sections,
 }: {
   task: DailyTask;
   onStart: (id: string) => void;
@@ -21,6 +22,7 @@ export default function SortableTaskCard({
   onUpdate?: (id: string, updates: Partial<DailyTask>) => void;
   onAddToRoutine?: (task: DailyTask) => void;
   onRevert?: (id: string) => void;
+  sections?: Section[];
 }) {
   const {
     attributes,
@@ -63,6 +65,7 @@ export default function SortableTaskCard({
           onUpdate={onUpdate}
           onAddToRoutine={onAddToRoutine}
           onRevert={onRevert}
+          sections={sections}
         />
       </div>
     </div>
