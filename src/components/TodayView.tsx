@@ -53,6 +53,8 @@ export default function TodayView({
   const [googleConnected, setGoogleConnected] = useState(false);
   const [routineMessage, setRoutineMessage] = useState<string | null>(null);
   const [timelineStartTime, setTimelineStartTime] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
   const supabase = createClient();
   const router = useRouter();
 
@@ -515,6 +517,29 @@ export default function TodayView({
     setTimeout(() => setImportMessage(null), 4000);
   }, [date]);
 
+  const handleExportCalendar = useCallback(async () => {
+    setExporting(true);
+    setExportMessage(null);
+    try {
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await fetch("/api/google/export-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, timezone }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setExportMessage(data.message);
+      } else {
+        setExportMessage(data.error || "エクスポートに失敗しました");
+      }
+    } catch {
+      setExportMessage("エクスポートに失敗しました");
+    }
+    setExporting(false);
+    setTimeout(() => setExportMessage(null), 4000);
+  }, [date]);
+
   const toggleSection = (sectionId: string) => {
     setCollapsedSections((prev) => {
       const next = new Set(prev);
@@ -603,13 +628,22 @@ export default function TodayView({
             </div>
             <div className="flex items-center gap-3">
               {googleConnected && (
-                <button
-                  onClick={handleImportCalendar}
-                  disabled={importing}
-                  className="rounded-lg border border-navy-600 px-3 py-1.5 text-xs text-gray-300 transition hover:border-green-accent hover:text-green-accent disabled:opacity-50"
-                >
-                  {importing ? "取込中..." : "📅 カレンダー取込"}
-                </button>
+                <>
+                  <button
+                    onClick={handleExportCalendar}
+                    disabled={exporting}
+                    className="rounded-lg border border-navy-600 px-3 py-1.5 text-xs text-gray-300 transition hover:border-blue-400 hover:text-blue-400 disabled:opacity-50"
+                  >
+                    {exporting ? "送信中..." : "📤 カレンダー送信"}
+                  </button>
+                  <button
+                    onClick={handleImportCalendar}
+                    disabled={importing}
+                    className="rounded-lg border border-navy-600 px-3 py-1.5 text-xs text-gray-300 transition hover:border-green-accent hover:text-green-accent disabled:opacity-50"
+                  >
+                    {importing ? "取込中..." : "📅 カレンダー取込"}
+                  </button>
+                </>
               )}
               <div className="text-sm text-gray-400">
                 {tasks.filter((t) => t.status === "done").length}/{tasks.length}{" "}
@@ -621,6 +655,11 @@ export default function TodayView({
         {importMessage && (
           <div className="mb-4 rounded-lg bg-green-accent/10 px-4 py-2 text-sm text-green-accent">
             {importMessage}
+          </div>
+        )}
+        {exportMessage && (
+          <div className="mb-4 rounded-lg bg-blue-500/10 px-4 py-2 text-sm text-blue-400">
+            {exportMessage}
           </div>
         )}
         {routineMessage && (
