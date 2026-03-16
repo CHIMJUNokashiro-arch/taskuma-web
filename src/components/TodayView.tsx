@@ -225,50 +225,18 @@ export default function TodayView({
   const handleStartTask = useCallback(
     async (taskId: string) => {
       const now = new Date().toISOString();
-      const inProgressTask = tasks.find((t) => t.status === "in_progress");
 
-      // Optimistic update
+      // Optimistic update — only update the target task, allow multiple in_progress
       setTasks((prev) =>
         prev.map((t) => {
           if (t.id === taskId) {
             return { ...t, status: "in_progress" as const, started_at: now };
           }
-          if (t.status === "in_progress") {
-            const elapsed = t.started_at
-              ? Math.round(
-                  (Date.now() - new Date(t.started_at).getTime()) / 60000
-                )
-              : 0;
-            return {
-              ...t,
-              status: "pending" as const,
-              actual_minutes: (t.actual_minutes ?? 0) + elapsed,
-              started_at: null,
-            };
-          }
           return t;
         })
       );
 
-      // DB updates (background)
-      if (inProgressTask) {
-        const elapsed = inProgressTask.started_at
-          ? Math.round(
-              (Date.now() - new Date(inProgressTask.started_at).getTime()) /
-                60000
-            )
-          : 0;
-        supabase
-          .from("daily_tasks")
-          .update({
-            status: "pending",
-            actual_minutes: (inProgressTask.actual_minutes ?? 0) + elapsed,
-            started_at: null,
-          })
-          .eq("id", inProgressTask.id)
-          .then(() => {});
-      }
-
+      // DB update (background)
       supabase
         .from("daily_tasks")
         .update({
@@ -278,7 +246,7 @@ export default function TodayView({
         .eq("id", taskId)
         .then(() => {});
     },
-    [tasks, supabase]
+    [supabase]
   );
 
   const handleCompleteTask = useCallback(

@@ -24,13 +24,14 @@ export default function EndTimeBar({ tasks }: { tasks: DailyTask[] }) {
     .filter((t) => t.status === "done")
     .reduce((sum, t) => sum + (t.actual_minutes ?? t.estimated_minutes ?? 0), 0);
 
-  // 実行中タスクの経過分を加算
-  const inProgressTask = tasks.find((t) => t.status === "in_progress");
-  const inProgressElapsed = inProgressTask?.started_at
-    ? Math.round(
-        (now.getTime() - new Date(inProgressTask.started_at).getTime()) / 60000
-      )
-    : 0;
+  // 実行中タスク（複数可）の経過分を合算
+  const inProgressElapsed = tasks
+    .filter((t) => t.status === "in_progress" && t.started_at)
+    .reduce((sum, t) => {
+      return sum + Math.round(
+        (now.getTime() - new Date(t.started_at!).getTime()) / 60000
+      );
+    }, 0);
 
   const endTime = new Date(now.getTime() + remainingMinutes * 60000);
 
