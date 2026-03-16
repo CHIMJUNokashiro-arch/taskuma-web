@@ -27,7 +27,8 @@ export default function AddTaskForm({
     timeRange: { startedAt: string; completedAt: string; actualMinutes: number } | null,
     timeBlock: TimeBlock | null,
     scheduledStart: string | null,
-    scheduledEnd: string | null
+    scheduledEnd: string | null,
+    targetDate: string | null
   ) => void;
   date: string;
   initialStartTime?: string | null;
@@ -41,6 +42,7 @@ export default function AddTaskForm({
   const [timeBlock, setTimeBlock] = useState<TimeBlock | null>(null);
   const [scheduledStart, setScheduledStart] = useState("");
   const [scheduledEnd, setScheduledEnd] = useState("");
+  const [targetDate, setTargetDate] = useState(date);
   const [showTimeRange, setShowTimeRange] = useState(false);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -86,8 +88,8 @@ export default function AddTaskForm({
 
   const calcActualMinutes = () => {
     if (!startTime || !endTime) return 0;
-    const s = new Date(`${date}T${startTime}`);
-    const e = new Date(`${date}T${endTime}`);
+    const s = new Date(`${targetDate}T${startTime}`);
+    const e = new Date(`${targetDate}T${endTime}`);
     return Math.max(Math.round((e.getTime() - s.getTime()) / 60000), 0);
   };
 
@@ -98,15 +100,17 @@ export default function AddTaskForm({
     let timeRange: { startedAt: string; completedAt: string; actualMinutes: number } | null = null;
     if (showTimeRange && startTime && endTime) {
       timeRange = {
-        startedAt: new Date(`${date}T${startTime}`).toISOString(),
-        completedAt: new Date(`${date}T${endTime}`).toISOString(),
+        startedAt: new Date(`${targetDate}T${startTime}`).toISOString(),
+        completedAt: new Date(`${targetDate}T${endTime}`).toISOString(),
         actualMinutes: calcActualMinutes(),
       };
     }
 
+    const dateDiffers = targetDate !== date ? targetDate : null;
+
     onAdd(
       title.trim(), estimated, sectionId, quadrant, timeRange, timeBlock,
-      scheduledStart || null, scheduledEnd || null
+      scheduledStart || null, scheduledEnd || null, dateDiffers
     );
     setTitle("");
     setEstimated(30);
@@ -115,6 +119,7 @@ export default function AddTaskForm({
     setTimeBlock(null);
     setScheduledStart("");
     setScheduledEnd("");
+    setTargetDate(date);
     setShowTimeRange(false);
     setStartTime("");
     setEndTime("");
@@ -207,12 +212,20 @@ export default function AddTaskForm({
           ))}
         </div>
       </div>
-      {/* 予定時間 */}
+      {/* 予定日時 */}
       <div className="mb-3">
         <label className="mb-1 block text-xs text-gray-400">
-          予定時間
+          予定日時
         </label>
         <div className="flex items-center gap-2">
+          <div className="w-[140px]">
+            <input
+              type="date"
+              value={targetDate}
+              onChange={(e) => setTargetDate(e.target.value)}
+              className="w-full rounded-lg border border-navy-600 bg-navy-900 px-3 py-2 text-sm text-white focus:border-green-accent focus:outline-none"
+            />
+          </div>
           <div className="flex-1">
             <input
               type="time"
@@ -231,6 +244,11 @@ export default function AddTaskForm({
             />
           </div>
         </div>
+        {targetDate !== date && (
+          <p className="mt-1 text-xs text-yellow-400">
+            ※ {new Date(targetDate + "T00:00:00").toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" })} に追加されます
+          </p>
+        )}
       </div>
       {/* 時間指定（後から記録用） */}
       <div className="mb-3">

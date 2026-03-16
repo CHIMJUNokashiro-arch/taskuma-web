@@ -428,8 +428,10 @@ export default function TodayView({
       timeRange: { startedAt: string; completedAt: string; actualMinutes: number } | null,
       timeBlock: TimeBlock | null,
       scheduledStart: string | null = null,
-      scheduledEnd: string | null = null
+      scheduledEnd: string | null = null,
+      targetDate: string | null = null
     ) => {
+      const taskDate = targetDate || date;
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -444,7 +446,7 @@ export default function TodayView({
       const insertData = timeRange
         ? {
             user_id: user.id,
-            date,
+            date: taskDate,
             title,
             estimated_minutes: estimatedMinutes,
             section_id: sectionId,
@@ -460,7 +462,7 @@ export default function TodayView({
           }
         : {
             user_id: user.id,
-            date,
+            date: taskDate,
             title,
             estimated_minutes: estimatedMinutes,
             section_id: sectionId,
@@ -478,7 +480,7 @@ export default function TodayView({
         .select()
         .single();
 
-      if (data) {
+      if (data && taskDate === date) {
         setTasks((prev) => [...prev, data]);
       }
     },
