@@ -2,14 +2,11 @@
 
 import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { TaskTemplate, Section, EisenhowerQuadrant, TimeBlock } from "@/lib/types";
+import type { TaskTemplate, Section, EisenhowerQuadrant } from "@/lib/types";
 import {
   EISENHOWER_QUADRANTS,
   EISENHOWER_LABELS,
   EISENHOWER_COLORS,
-  TIME_BLOCKS,
-  TIME_BLOCK_LABELS,
-  TIME_BLOCK_COLORS,
 } from "@/lib/types";
 
 export default function TemplatesView({
@@ -27,7 +24,8 @@ export default function TemplatesView({
   const [sectionId, setSectionId] = useState<string | null>(null);
   const [isRoutine, setIsRoutine] = useState(false);
   const [quadrant, setQuadrant] = useState<EisenhowerQuadrant | null>(null);
-  const [timeBlock, setTimeBlock] = useState<TimeBlock | null>(null);
+  const [scheduledStart, setScheduledStart] = useState("");
+  const [scheduledEnd, setScheduledEnd] = useState("");
   const supabase = createClient();
 
   const resetForm = () => {
@@ -36,7 +34,8 @@ export default function TemplatesView({
     setSectionId(null);
     setIsRoutine(false);
     setQuadrant(null);
-    setTimeBlock(null);
+    setScheduledStart("");
+    setScheduledEnd("");
     setIsAdding(false);
     setEditingId(null);
   };
@@ -62,7 +61,8 @@ export default function TemplatesView({
         section_id: sectionId,
         is_routine: isRoutine,
         eisenhower_quadrant: quadrant,
-        time_block: timeBlock,
+        scheduled_start: scheduledStart || null,
+        scheduled_end: scheduledEnd || null,
         sort_order: maxSort + 1,
       })
       .select()
@@ -72,7 +72,7 @@ export default function TemplatesView({
       setTemplates((prev) => [...prev, data]);
       resetForm();
     }
-  }, [title, estimated, sectionId, isRoutine, quadrant, timeBlock, templates, supabase]);
+  }, [title, estimated, sectionId, isRoutine, quadrant, scheduledStart, scheduledEnd, templates, supabase]);
 
   const handleUpdate = useCallback(
     async (id: string) => {
@@ -84,7 +84,8 @@ export default function TemplatesView({
           section_id: sectionId,
           is_routine: isRoutine,
           eisenhower_quadrant: quadrant,
-          time_block: timeBlock,
+          scheduled_start: scheduledStart || null,
+          scheduled_end: scheduledEnd || null,
         })
         .eq("id", id);
 
@@ -98,14 +99,15 @@ export default function TemplatesView({
                 section_id: sectionId,
                 is_routine: isRoutine,
                 eisenhower_quadrant: quadrant,
-                time_block: timeBlock,
+                scheduled_start: scheduledStart || null,
+                scheduled_end: scheduledEnd || null,
               }
             : t
         )
       );
       resetForm();
     },
-    [title, estimated, sectionId, isRoutine, quadrant, timeBlock, supabase]
+    [title, estimated, sectionId, isRoutine, quadrant, scheduledStart, scheduledEnd, supabase]
   );
 
   const handleDelete = useCallback(
@@ -123,7 +125,22 @@ export default function TemplatesView({
     setSectionId(template.section_id);
     setIsRoutine(template.is_routine);
     setQuadrant(template.eisenhower_quadrant);
-    setTimeBlock(template.time_block);
+    setScheduledStart(template.scheduled_start ?? "");
+    setScheduledEnd(template.scheduled_end ?? "");
+  };
+
+  // 予定開始時間→終了時間を見積もり時間から自動計算
+  const handleScheduledStartChange = (value: string) => {
+    setScheduledStart(value);
+    if (value && estimated > 0) {
+      const [h, m] = value.split(":").map(Number);
+      const endMinutes = h * 60 + m + estimated;
+      const endH = Math.floor(endMinutes / 60) % 24;
+      const endM = endMinutes % 60;
+      setScheduledEnd(
+        `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`
+      );
+    }
   };
 
   const getSectionName = (id: string | null) =>
@@ -208,26 +225,29 @@ export default function TemplatesView({
               ))}
             </div>
           </div>
-          {/* タイムブロック選択 */}
+          {/* 予定時間 */}
           <div className="mb-3">
             <label className="mb-1 block text-xs text-gray-400">
-              タイムブロック
+              予定時間
             </label>
-            <div className="flex flex-wrap gap-1.5">
-              {TIME_BLOCKS.map((tb) => (
-                <button
-                  key={tb}
-                  type="button"
-                  onClick={() => setTimeBlock(timeBlock === tb ? null : tb)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                    timeBlock === tb
-                      ? `${TIME_BLOCK_COLORS[tb].bg} ${TIME_BLOCK_COLORS[tb].text} ${TIME_BLOCK_COLORS[tb].border} border`
-                      : "border border-navy-600 text-gray-500 hover:border-navy-400"
-                  }`}
-                >
-                  {TIME_BLOCK_LABELS[tb]}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <input
+                  type="time"
+                  value={scheduledStart}
+                  onChange={(e) => handleScheduledStartChange(e.target.value)}
+                  className="w-full rounded-lg border border-navy-600 bg-navy-900 px-3 py-2 text-sm text-white focus:border-green-accent focus:outline-none"
+                />
+              </div>
+              <span className="text-gray-500">〜</span>
+              <div className="flex-1">
+                <input
+                  type="time"
+                  value={scheduledEnd}
+                  onChange={(e) => setScheduledEnd(e.target.value)}
+                  className="w-full rounded-lg border border-navy-600 bg-navy-900 px-3 py-2 text-sm text-white focus:border-green-accent focus:outline-none"
+                />
+              </div>
             </div>
           </div>
           <label className="mb-4 flex items-center gap-2 text-sm text-gray-300">
@@ -280,11 +300,9 @@ export default function TemplatesView({
                     {EISENHOWER_LABELS[template.eisenhower_quadrant]}
                   </span>
                 )}
-                {template.time_block && (
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${TIME_BLOCK_COLORS[template.time_block].badge}`}
-                  >
-                    {TIME_BLOCK_LABELS[template.time_block]}
+                {template.scheduled_start && (
+                  <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[10px] font-medium text-sky-300">
+                    {template.scheduled_start}–{template.scheduled_end ?? ""}
                   </span>
                 )}
                 {template.is_routine && (

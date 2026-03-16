@@ -458,7 +458,9 @@ export default function TodayView({
       sectionId: string | null,
       eisenhowerQuadrant: EisenhowerQuadrant | null,
       timeRange: { startedAt: string; completedAt: string; actualMinutes: number } | null,
-      timeBlock: TimeBlock | null
+      timeBlock: TimeBlock | null,
+      scheduledStart: string | null = null,
+      scheduledEnd: string | null = null
     ) => {
       const {
         data: { user },
@@ -480,6 +482,8 @@ export default function TodayView({
             section_id: sectionId,
             eisenhower_quadrant: eisenhowerQuadrant,
             time_block: timeBlock,
+            scheduled_start: scheduledStart,
+            scheduled_end: scheduledEnd,
             sort_order: maxSort + 1,
             status: "done" as const,
             started_at: timeRange.startedAt,
@@ -494,6 +498,8 @@ export default function TodayView({
             section_id: sectionId,
             eisenhower_quadrant: eisenhowerQuadrant,
             time_block: timeBlock,
+            scheduled_start: scheduledStart,
+            scheduled_end: scheduledEnd,
             sort_order: maxSort + 1,
             status: "pending" as const,
           };

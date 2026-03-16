@@ -90,6 +90,13 @@ ALTER TABLE daily_tasks ADD COLUMN eisenhower_quadrant TEXT
 ALTER TABLE task_templates ADD COLUMN eisenhower_quadrant TEXT
   CHECK (eisenhower_quadrant IN ('urgent_important', 'important', 'urgent', 'other'));
 
+-- Scheduled start/end time (HH:MM format, e.g. '09:00', '10:30')
+ALTER TABLE daily_tasks ADD COLUMN scheduled_start TEXT;
+ALTER TABLE daily_tasks ADD COLUMN scheduled_end TEXT;
+
+ALTER TABLE task_templates ADD COLUMN scheduled_start TEXT;
+ALTER TABLE task_templates ADD COLUMN scheduled_end TEXT;
+
 -- Realtime subscriptions
 ALTER PUBLICATION supabase_realtime ADD TABLE daily_tasks;
 ALTER PUBLICATION supabase_realtime ADD TABLE sections;

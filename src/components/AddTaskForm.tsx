@@ -25,7 +25,9 @@ export default function AddTaskForm({
     sectionId: string | null,
     eisenhowerQuadrant: EisenhowerQuadrant | null,
     timeRange: { startedAt: string; completedAt: string; actualMinutes: number } | null,
-    timeBlock: TimeBlock | null
+    timeBlock: TimeBlock | null,
+    scheduledStart: string | null,
+    scheduledEnd: string | null
   ) => void;
   date: string;
   initialStartTime?: string | null;
@@ -37,6 +39,8 @@ export default function AddTaskForm({
   const [sectionId, setSectionId] = useState<string | null>(null);
   const [quadrant, setQuadrant] = useState<EisenhowerQuadrant | null>(null);
   const [timeBlock, setTimeBlock] = useState<TimeBlock | null>(null);
+  const [scheduledStart, setScheduledStart] = useState("");
+  const [scheduledEnd, setScheduledEnd] = useState("");
   const [showTimeRange, setShowTimeRange] = useState(false);
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -48,14 +52,16 @@ export default function AddTaskForm({
       setIsOpen(true);
       setShowTimeRange(true);
       setStartTime(initialStartTime);
+      // 予定時間にもセット
+      setScheduledStart(initialStartTime);
       // 開始時間 + 見積もり時間から終了時間を自動計算
       const [h, m] = initialStartTime.split(":").map(Number);
       const endMinutes = h * 60 + m + estimated;
       const endH = Math.floor(endMinutes / 60);
       const endM = endMinutes % 60;
-      setEndTime(
-        `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`
-      );
+      const endStr = `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`;
+      setEndTime(endStr);
+      setScheduledEnd(endStr);
       // フォームにスクロール
       setTimeout(() => {
         formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -63,6 +69,20 @@ export default function AddTaskForm({
       onResetInitialTime?.();
     }
   }, [initialStartTime, estimated, onResetInitialTime]);
+
+  // 予定開始時間が入力されたら、見積もり時間から予定終了時間を自動計算
+  const handleScheduledStartChange = (value: string) => {
+    setScheduledStart(value);
+    if (value && estimated > 0) {
+      const [h, m] = value.split(":").map(Number);
+      const endMinutes = h * 60 + m + estimated;
+      const endH = Math.floor(endMinutes / 60) % 24;
+      const endM = endMinutes % 60;
+      setScheduledEnd(
+        `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`
+      );
+    }
+  };
 
   const calcActualMinutes = () => {
     if (!startTime || !endTime) return 0;
@@ -84,12 +104,17 @@ export default function AddTaskForm({
       };
     }
 
-    onAdd(title.trim(), estimated, sectionId, quadrant, timeRange, timeBlock);
+    onAdd(
+      title.trim(), estimated, sectionId, quadrant, timeRange, timeBlock,
+      scheduledStart || null, scheduledEnd || null
+    );
     setTitle("");
     setEstimated(30);
     setSectionId(null);
     setQuadrant(null);
     setTimeBlock(null);
+    setScheduledStart("");
+    setScheduledEnd("");
     setShowTimeRange(false);
     setStartTime("");
     setEndTime("");
@@ -182,26 +207,29 @@ export default function AddTaskForm({
           ))}
         </div>
       </div>
-      {/* タイムブロック選択 */}
+      {/* 予定時間 */}
       <div className="mb-3">
         <label className="mb-1 block text-xs text-gray-400">
-          タイムブロック
+          予定時間
         </label>
-        <div className="flex flex-wrap gap-1.5">
-          {TIME_BLOCKS.map((tb) => (
-            <button
-              key={tb}
-              type="button"
-              onClick={() => setTimeBlock(timeBlock === tb ? null : tb)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                timeBlock === tb
-                  ? `${TIME_BLOCK_COLORS[tb].bg} ${TIME_BLOCK_COLORS[tb].text} ${TIME_BLOCK_COLORS[tb].border} border`
-                  : "border border-navy-600 text-gray-500 hover:border-navy-400"
-              }`}
-            >
-              {TIME_BLOCK_LABELS[tb]}
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <input
+              type="time"
+              value={scheduledStart}
+              onChange={(e) => handleScheduledStartChange(e.target.value)}
+              className="w-full rounded-lg border border-navy-600 bg-navy-900 px-3 py-2 text-sm text-white focus:border-green-accent focus:outline-none"
+            />
+          </div>
+          <span className="text-gray-500">〜</span>
+          <div className="flex-1">
+            <input
+              type="time"
+              value={scheduledEnd}
+              onChange={(e) => setScheduledEnd(e.target.value)}
+              className="w-full rounded-lg border border-navy-600 bg-navy-900 px-3 py-2 text-sm text-white focus:border-green-accent focus:outline-none"
+            />
+          </div>
         </div>
       </div>
       {/* 時間指定（後から記録用） */}

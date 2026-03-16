@@ -122,6 +122,8 @@ export type TaskTemplate = {
   sort_order: number;
   eisenhower_quadrant: EisenhowerQuadrant | null;
   time_block: TimeBlock | null;
+  scheduled_start: string | null; // HH:MM format
+  scheduled_end: string | null;   // HH:MM format
   created_at: string;
 };
 
@@ -142,6 +144,8 @@ export type DailyTask = {
   google_event_id: string | null;
   eisenhower_quadrant: EisenhowerQuadrant | null;
   time_block: TimeBlock | null;
+  scheduled_start: string | null; // HH:MM format
+  scheduled_end: string | null;   // HH:MM format
   created_at: string;
 };
 

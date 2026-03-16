@@ -37,6 +37,8 @@ export default function TaskCard({
   const [editTimeBlock, setEditTimeBlock] = useState<TimeBlock | null>(task.time_block);
   const [editEndTime, setEditEndTime] = useState("");
   const [editSectionId, setEditSectionId] = useState<string | null>(task.section_id);
+  const [editScheduledStart, setEditScheduledStart] = useState(task.scheduled_start || "");
+  const [editScheduledEnd, setEditScheduledEnd] = useState(task.scheduled_end || "");
 
   useEffect(() => {
     if (task.status !== "in_progress" || !task.started_at) {
@@ -93,6 +95,8 @@ export default function TaskCard({
     }
     setEditTimeBlock(task.time_block);
     setEditSectionId(task.section_id);
+    setEditScheduledStart(task.scheduled_start || "");
+    setEditScheduledEnd(task.scheduled_end || "");
     setEditing(true);
   };
 
@@ -177,6 +181,13 @@ export default function TaskCard({
       updates.section_id = editSectionId;
     }
 
+    if ((editScheduledStart || null) !== (task.scheduled_start || null)) {
+      updates.scheduled_start = editScheduledStart || null;
+    }
+    if ((editScheduledEnd || null) !== (task.scheduled_end || null)) {
+      updates.scheduled_end = editScheduledEnd || null;
+    }
+
     if (Object.keys(updates).length > 0) {
       onUpdate(task.id, updates);
     }
@@ -255,22 +266,31 @@ export default function TaskCard({
             </div>
           )}
           <div>
-            <label className="mb-1 block text-[10px] text-gray-500">タイムブロック</label>
-            <div className="flex flex-wrap gap-1">
-              {TIME_BLOCKS.map((tb) => (
-                <button
-                  key={tb}
-                  type="button"
-                  onClick={() => setEditTimeBlock(editTimeBlock === tb ? null : tb)}
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition ${
-                    editTimeBlock === tb
-                      ? `${TIME_BLOCK_COLORS[tb].bg} ${TIME_BLOCK_COLORS[tb].text} ${TIME_BLOCK_COLORS[tb].border} border`
-                      : "border border-navy-600 text-gray-500 hover:border-navy-400"
-                  }`}
-                >
-                  {TIME_BLOCK_LABELS[tb]}
-                </button>
-              ))}
+            <label className="mb-1 block text-[10px] text-gray-500">予定時間</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="time"
+                value={editScheduledStart}
+                onChange={(e) => {
+                  setEditScheduledStart(e.target.value);
+                  // 予定開始変更時に見積もりから終了時間を自動計算（終了未設定の場合）
+                  if (e.target.value && !editScheduledEnd && editEstimated > 0) {
+                    const [h, m] = e.target.value.split(":").map(Number);
+                    const endMin = h * 60 + m + editEstimated;
+                    const eH = Math.floor(endMin / 60) % 24;
+                    const eM = endMin % 60;
+                    setEditScheduledEnd(`${eH.toString().padStart(2, "0")}:${eM.toString().padStart(2, "0")}`);
+                  }
+                }}
+                className="w-24 rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
+              />
+              <span className="text-[10px] text-gray-500">〜</span>
+              <input
+                type="time"
+                value={editScheduledEnd}
+                onChange={(e) => setEditScheduledEnd(e.target.value)}
+                className="w-24 rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
+              />
             </div>
           </div>
           <div className="flex gap-2">
@@ -332,7 +352,12 @@ export default function TaskCard({
                 {EISENHOWER_LABELS[task.eisenhower_quadrant]}
               </span>
             )}
-            {task.time_block && (
+            {task.scheduled_start && (
+              <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-[10px] font-medium text-sky-300">
+                {task.scheduled_start}{task.scheduled_end ? `–${task.scheduled_end}` : ""}
+              </span>
+            )}
+            {!task.scheduled_start && task.time_block && (
               <span
                 className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${TIME_BLOCK_COLORS[task.time_block].badge}`}
               >
