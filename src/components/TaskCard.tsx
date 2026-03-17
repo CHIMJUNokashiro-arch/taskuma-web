@@ -210,6 +210,7 @@ export default function TaskCard({
             autoFocus
             className="w-full rounded-lg border border-navy-600 bg-navy-900 px-3 py-1.5 text-sm text-white focus:border-green-accent focus:outline-none"
             onKeyDown={(e) => {
+              if (e.nativeEvent.isComposing) return;
               if (e.key === "Enter") handleSave();
               if (e.key === "Escape") handleCancel();
             }}

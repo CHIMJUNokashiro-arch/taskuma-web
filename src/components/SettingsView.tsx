@@ -88,6 +88,7 @@ function SortableSectionItem({
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === "Enter") onSaveEdit(section.id);
                 if (e.key === "Escape") onCancelEdit();
               }}
@@ -99,6 +100,7 @@ function SortableSectionItem({
               value={editMinutes}
               onChange={(e) => setEditMinutes(Number(e.target.value))}
               onKeyDown={(e) => {
+                if (e.nativeEvent.isComposing) return;
                 if (e.key === "Enter") onSaveEdit(section.id);
                 if (e.key === "Escape") onCancelEdit();
               }}
@@ -405,7 +407,7 @@ export default function SettingsView({
             onChange={(e) => setNewSectionName(e.target.value)}
             placeholder="セクション名（例：朝）"
             className="flex-1 rounded-lg border border-navy-600 bg-navy-900 px-4 py-2 text-white placeholder-gray-500 focus:border-green-accent focus:outline-none"
-            onKeyDown={(e) => e.key === "Enter" && handleAddSection()}
+            onKeyDown={(e) => !e.nativeEvent.isComposing && e.key === "Enter" && handleAddSection()}
           />
           <button
             onClick={handleAddSection}
