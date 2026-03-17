@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Section } from "@/lib/types";
 import {
@@ -43,6 +43,7 @@ function SortableSectionItem({
   onStartEdit: (section: Section) => void;
   onDelete: (id: string) => void;
 }) {
+  const composingRef = useRef(false);
   const {
     attributes,
     listeners,
@@ -87,8 +88,10 @@ function SortableSectionItem({
               type="text"
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
+              onCompositionStart={() => { composingRef.current = true; }}
+              onCompositionEnd={() => { composingRef.current = false; }}
               onKeyDown={(e) => {
-                if (e.nativeEvent.isComposing) return;
+                if (composingRef.current || e.nativeEvent.isComposing) return;
                 if (e.key === "Enter") onSaveEdit(section.id);
                 if (e.key === "Escape") onCancelEdit();
               }}
@@ -100,7 +103,6 @@ function SortableSectionItem({
               value={editMinutes}
               onChange={(e) => setEditMinutes(Number(e.target.value))}
               onKeyDown={(e) => {
-                if (e.nativeEvent.isComposing) return;
                 if (e.key === "Enter") onSaveEdit(section.id);
                 if (e.key === "Escape") onCancelEdit();
               }}
@@ -167,6 +169,7 @@ export default function SettingsView({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editMinutes, setEditMinutes] = useState(60);
+  const addComposingRef = useRef(false);
   const supabase = createClient();
 
   const sensors = useSensors(
@@ -407,7 +410,12 @@ export default function SettingsView({
             onChange={(e) => setNewSectionName(e.target.value)}
             placeholder="セクション名（例：朝）"
             className="flex-1 rounded-lg border border-navy-600 bg-navy-900 px-4 py-2 text-white placeholder-gray-500 focus:border-green-accent focus:outline-none"
-            onKeyDown={(e) => !e.nativeEvent.isComposing && e.key === "Enter" && handleAddSection()}
+            onCompositionStart={() => { addComposingRef.current = true; }}
+            onCompositionEnd={() => { addComposingRef.current = false; }}
+            onKeyDown={(e) => {
+              if (addComposingRef.current || e.nativeEvent.isComposing) return;
+              if (e.key === "Enter") handleAddSection();
+            }}
           />
           <button
             onClick={handleAddSection}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { DailyTask, Section, TimeBlock } from "@/lib/types";
 import {
   EISENHOWER_LABELS,
@@ -39,6 +39,7 @@ export default function TaskCard({
   const [editSectionId, setEditSectionId] = useState<string | null>(task.section_id);
   const [editScheduledStart, setEditScheduledStart] = useState(task.scheduled_start || "");
   const [editScheduledEnd, setEditScheduledEnd] = useState(task.scheduled_end || "");
+  const composingRef = useRef(false);
 
   useEffect(() => {
     if (task.status !== "in_progress" || !task.started_at) {
@@ -209,8 +210,10 @@ export default function TaskCard({
             onChange={(e) => setEditTitle(e.target.value)}
             autoFocus
             className="w-full rounded-lg border border-navy-600 bg-navy-900 px-3 py-1.5 text-sm text-white focus:border-green-accent focus:outline-none"
+            onCompositionStart={() => { composingRef.current = true; }}
+            onCompositionEnd={() => { composingRef.current = false; }}
             onKeyDown={(e) => {
-              if (e.nativeEvent.isComposing) return;
+              if (composingRef.current || e.nativeEvent.isComposing) return;
               if (e.key === "Enter") handleSave();
               if (e.key === "Escape") handleCancel();
             }}
