@@ -3,6 +3,138 @@
 import { useState, useCallback, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Section } from "@/lib/types";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+function SortableSectionItem({
+  section,
+  editingId,
+  editName,
+  setEditName,
+  onSaveEdit,
+  onCancelEdit,
+  onStartEdit,
+  onDelete,
+}: {
+  section: Section;
+  editingId: string | null;
+  editName: string;
+  setEditName: (v: string) => void;
+  onSaveEdit: (id: string) => void;
+  onCancelEdit: () => void;
+  onStartEdit: (section: Section) => void;
+  onDelete: (id: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: section.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between rounded-lg border border-navy-600 p-3"
+    >
+      <div className="flex items-center gap-2">
+        {/* ドラッグハンドル */}
+        <button
+          className="flex w-6 flex-shrink-0 cursor-grab items-center justify-center text-gray-600 transition hover:text-gray-400 active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+        >
+          <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+            <circle cx="9" cy="6" r="1.5" />
+            <circle cx="15" cy="6" r="1.5" />
+            <circle cx="9" cy="12" r="1.5" />
+            <circle cx="15" cy="12" r="1.5" />
+            <circle cx="9" cy="18" r="1.5" />
+            <circle cx="15" cy="18" r="1.5" />
+          </svg>
+        </button>
+        {editingId === section.id ? (
+          <input
+            type="text"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onSaveEdit(section.id);
+              if (e.key === "Escape") onCancelEdit();
+            }}
+            onBlur={() => onSaveEdit(section.id)}
+            autoFocus
+            className="flex-1 rounded border border-green-accent bg-navy-900 px-2 py-1 text-white focus:outline-none"
+          />
+        ) : (
+          <span
+            className="cursor-pointer text-white"
+            onDoubleClick={() => onStartEdit(section)}
+          >
+            {section.name}
+          </span>
+        )}
+      </div>
+      <div className="ml-2 flex gap-2">
+        {editingId === section.id ? (
+          <>
+            <button
+              onClick={() => onSaveEdit(section.id)}
+              className="text-sm text-green-accent transition hover:text-green-400"
+            >
+              保存
+            </button>
+            <button
+              onClick={onCancelEdit}
+              className="text-sm text-gray-500 transition hover:text-gray-300"
+            >
+              取消
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => onStartEdit(section)}
+              className="text-sm text-gray-500 transition hover:text-green-accent"
+            >
+              編集
+            </button>
+            <button
+              onClick={() => onDelete(section.id)}
+              className="text-sm text-gray-500 transition hover:text-red-400"
+            >
+              削除
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsView({
   sections: initialSections,
@@ -19,6 +151,13 @@ export default function SettingsView({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const supabase = createClient();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     fetch("/api/google/status")
@@ -92,17 +231,20 @@ export default function SettingsView({
     setEditName("");
   }, []);
 
-  const handleMoveSection = useCallback(
-    async (index: number, direction: "up" | "down") => {
-      const targetIndex = direction === "up" ? index - 1 : index + 1;
-      if (targetIndex < 0 || targetIndex >= sections.length) return;
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
 
-      const newSections = [...sections];
-      const [moved] = newSections.splice(index, 1);
-      newSections.splice(targetIndex, 0, moved);
+      const oldIndex = sections.findIndex((s) => s.id === active.id);
+      const newIndex = sections.findIndex((s) => s.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
 
-      // sort_orderを振り直す
-      const updated = newSections.map((s, i) => ({ ...s, sort_order: i }));
+      const reordered = [...sections];
+      const [moved] = reordered.splice(oldIndex, 1);
+      reordered.splice(newIndex, 0, moved);
+
+      const updated = reordered.map((s, i) => ({ ...s, sort_order: i }));
       setSections(updated);
 
       // DB更新
@@ -194,102 +336,40 @@ export default function SettingsView({
           セクション管理
         </h3>
         <p className="mb-4 text-sm text-gray-400">
-          タスクを分類するセクション（例：朝、午前、午後、夜）を管理します。
+          タスクを分類するセクション（例：朝、午前、午後、夜）を管理します。ドラッグで並び替えできます。
         </p>
 
-        <div className="mb-4 space-y-2">
-          {sections.map((section, index) => (
-            <div
-              key={section.id}
-              className="flex items-center justify-between rounded-lg border border-navy-600 p-3"
-            >
-              <div className="flex items-center gap-2">
-                {/* 上下移動ボタン */}
-                <div className="flex flex-col gap-0.5">
-                  <button
-                    onClick={() => handleMoveSection(index, "up")}
-                    disabled={index === 0}
-                    className="rounded p-0.5 text-gray-500 transition hover:bg-navy-600 hover:text-white disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-gray-500"
-                    title="上に移動"
-                  >
-                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => handleMoveSection(index, "down")}
-                    disabled={index === sections.length - 1}
-                    className="rounded p-0.5 text-gray-500 transition hover:bg-navy-600 hover:text-white disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-gray-500"
-                    title="下に移動"
-                  >
-                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                </div>
-                {editingId === section.id ? (
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleSaveEdit(section.id);
-                      if (e.key === "Escape") handleCancelEdit();
-                    }}
-                    onBlur={() => handleSaveEdit(section.id)}
-                    autoFocus
-                    className="flex-1 rounded border border-green-accent bg-navy-900 px-2 py-1 text-white focus:outline-none"
-                  />
-                ) : (
-                  <span
-                    className="cursor-pointer text-white"
-                    onDoubleClick={() => handleStartEdit(section)}
-                  >
-                    {section.name}
-                  </span>
-                )}
-              </div>
-              <div className="ml-2 flex gap-2">
-                {editingId === section.id ? (
-                  <>
-                    <button
-                      onClick={() => handleSaveEdit(section.id)}
-                      className="text-sm text-green-accent transition hover:text-green-400"
-                    >
-                      保存
-                    </button>
-                    <button
-                      onClick={handleCancelEdit}
-                      className="text-sm text-gray-500 transition hover:text-gray-300"
-                    >
-                      取消
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => handleStartEdit(section)}
-                      className="text-sm text-gray-500 transition hover:text-green-accent"
-                    >
-                      編集
-                    </button>
-                    <button
-                      onClick={() => handleDeleteSection(section.id)}
-                      className="text-sm text-gray-500 transition hover:text-red-400"
-                    >
-                      削除
-                    </button>
-                  </>
-                )}
-              </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={sections.map((s) => s.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="mb-4 space-y-2">
+              {sections.map((section) => (
+                <SortableSectionItem
+                  key={section.id}
+                  section={section}
+                  editingId={editingId}
+                  editName={editName}
+                  setEditName={setEditName}
+                  onSaveEdit={handleSaveEdit}
+                  onCancelEdit={handleCancelEdit}
+                  onStartEdit={handleStartEdit}
+                  onDelete={handleDeleteSection}
+                />
+              ))}
+              {sections.length === 0 && (
+                <p className="text-sm text-gray-500">
+                  セクションがありません。
+                </p>
+              )}
             </div>
-          ))}
-          {sections.length === 0 && (
-            <p className="text-sm text-gray-500">
-              セクションがありません。
-            </p>
-          )}
-        </div>
+          </SortableContext>
+        </DndContext>
 
         <div className="flex gap-2">
           <input
