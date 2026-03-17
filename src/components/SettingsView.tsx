@@ -108,11 +108,11 @@ function SortableSectionItem({
             <span className="text-xs text-gray-400">分</span>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <span
-              className="cursor-pointer text-white"
-              onDoubleClick={() => onStartEdit(section)}
-            >
+          <div
+            className="flex flex-1 cursor-pointer items-center gap-2"
+            onClick={() => onStartEdit(section)}
+          >
+            <span className="text-white">
               {section.name}
             </span>
             <span className="text-xs text-gray-500">
@@ -138,20 +138,12 @@ function SortableSectionItem({
             </button>
           </>
         ) : (
-          <>
-            <button
-              onClick={() => onStartEdit(section)}
-              className="text-sm text-gray-500 transition hover:text-green-accent"
-            >
-              編集
-            </button>
-            <button
-              onClick={() => onDelete(section.id)}
-              className="text-sm text-gray-500 transition hover:text-red-400"
-            >
-              削除
-            </button>
-          </>
+          <button
+            onClick={() => onDelete(section.id)}
+            className="text-sm text-gray-500 transition hover:text-red-400"
+          >
+            削除
+          </button>
         )}
       </div>
     </div>
