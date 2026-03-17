@@ -25,6 +25,8 @@ function SortableSectionItem({
   editingId,
   editName,
   setEditName,
+  editMinutes,
+  setEditMinutes,
   onSaveEdit,
   onCancelEdit,
   onStartEdit,
@@ -34,6 +36,8 @@ function SortableSectionItem({
   editingId: string | null;
   editName: string;
   setEditName: (v: string) => void;
+  editMinutes: number;
+  setEditMinutes: (v: number) => void;
   onSaveEdit: (id: string) => void;
   onCancelEdit: () => void;
   onStartEdit: (section: Section) => void;
@@ -78,28 +82,46 @@ function SortableSectionItem({
           </svg>
         </button>
         {editingId === section.id ? (
-          <input
-            type="text"
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onSaveEdit(section.id);
-              if (e.key === "Escape") onCancelEdit();
-            }}
-            onBlur={() => onSaveEdit(section.id)}
-            autoFocus
-            className="flex-1 rounded border border-green-accent bg-navy-900 px-2 py-1 text-white focus:outline-none"
-          />
+          <div className="flex flex-1 items-center gap-2">
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onSaveEdit(section.id);
+                if (e.key === "Escape") onCancelEdit();
+              }}
+              autoFocus
+              className="min-w-0 flex-1 rounded border border-green-accent bg-navy-900 px-2 py-1 text-white focus:outline-none"
+            />
+            <input
+              type="number"
+              value={editMinutes}
+              onChange={(e) => setEditMinutes(Number(e.target.value))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onSaveEdit(section.id);
+                if (e.key === "Escape") onCancelEdit();
+              }}
+              min={1}
+              className="w-16 rounded border border-green-accent bg-navy-900 px-2 py-1 text-white focus:outline-none"
+            />
+            <span className="text-xs text-gray-400">分</span>
+          </div>
         ) : (
-          <span
-            className="cursor-pointer text-white"
-            onDoubleClick={() => onStartEdit(section)}
-          >
-            {section.name}
-          </span>
+          <div className="flex items-center gap-2">
+            <span
+              className="cursor-pointer text-white"
+              onDoubleClick={() => onStartEdit(section)}
+            >
+              {section.name}
+            </span>
+            <span className="text-xs text-gray-500">
+              {section.default_estimated_minutes ?? 60}分
+            </span>
+          </div>
         )}
       </div>
-      <div className="ml-2 flex gap-2">
+      <div className="ml-2 flex flex-shrink-0 gap-2">
         {editingId === section.id ? (
           <>
             <button
@@ -150,6 +172,7 @@ export default function SettingsView({
   const [disconnecting, setDisconnecting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [editMinutes, setEditMinutes] = useState(60);
   const supabase = createClient();
 
   const sensors = useSensors(
@@ -208,6 +231,7 @@ export default function SettingsView({
   const handleStartEdit = useCallback((section: Section) => {
     setEditingId(section.id);
     setEditName(section.name);
+    setEditMinutes(section.default_estimated_minutes ?? 60);
   }, []);
 
   const handleSaveEdit = useCallback(
@@ -217,18 +241,27 @@ export default function SettingsView({
         setEditingId(null);
         return;
       }
-      await supabase.from("sections").update({ name: trimmed }).eq("id", id);
+      const mins = Math.max(1, editMinutes);
+      await supabase
+        .from("sections")
+        .update({ name: trimmed, default_estimated_minutes: mins })
+        .eq("id", id);
       setSections((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, name: trimmed } : s))
+        prev.map((s) =>
+          s.id === id
+            ? { ...s, name: trimmed, default_estimated_minutes: mins }
+            : s
+        )
       );
       setEditingId(null);
     },
-    [editName, supabase]
+    [editName, editMinutes, supabase]
   );
 
   const handleCancelEdit = useCallback(() => {
     setEditingId(null);
     setEditName("");
+    setEditMinutes(60);
   }, []);
 
   const handleDragEnd = useCallback(
@@ -356,6 +389,8 @@ export default function SettingsView({
                   editingId={editingId}
                   editName={editName}
                   setEditName={setEditName}
+                  editMinutes={editMinutes}
+                  setEditMinutes={setEditMinutes}
                   onSaveEdit={handleSaveEdit}
                   onCancelEdit={handleCancelEdit}
                   onStartEdit={handleStartEdit}

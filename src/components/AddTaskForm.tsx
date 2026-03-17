@@ -36,7 +36,7 @@ export default function AddTaskForm({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [estimated, setEstimated] = useState(30);
+  const [estimated, setEstimated] = useState(60);
   const [sectionId, setSectionId] = useState<string | null>(null);
   const [quadrant, setQuadrant] = useState<EisenhowerQuadrant | null>(null);
   const [timeBlock, setTimeBlock] = useState<TimeBlock | null>(null);
@@ -113,7 +113,7 @@ export default function AddTaskForm({
       scheduledStart || null, scheduledEnd || null, dateDiffers
     );
     setTitle("");
-    setEstimated(30);
+    setEstimated(60);
     setSectionId(null);
     setQuadrant(null);
     setTimeBlock(null);
@@ -174,9 +174,12 @@ export default function AddTaskForm({
             onChange={(e) => {
               const id = e.target.value || null;
               setSectionId(id);
-              if (id && !title.trim()) {
+              if (id) {
                 const sec = sections.find((s) => s.id === id);
-                if (sec) setTitle(sec.name);
+                if (sec) {
+                  if (!title.trim()) setTitle(sec.name);
+                  setEstimated(sec.default_estimated_minutes ?? 60);
+                }
               }
             }}
             className="w-full rounded-lg border border-navy-600 bg-navy-900 px-3 py-2 text-white focus:border-green-accent focus:outline-none"

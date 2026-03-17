@@ -109,6 +109,7 @@ export type Section = {
   user_id: string;
   name: string;
   sort_order: number;
+  default_estimated_minutes: number;
   created_at: string;
 };
 
