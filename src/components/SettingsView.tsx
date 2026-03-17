@@ -92,6 +92,32 @@ export default function SettingsView({
     setEditName("");
   }, []);
 
+  const handleMoveSection = useCallback(
+    async (index: number, direction: "up" | "down") => {
+      const targetIndex = direction === "up" ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= sections.length) return;
+
+      const newSections = [...sections];
+      const [moved] = newSections.splice(index, 1);
+      newSections.splice(targetIndex, 0, moved);
+
+      // sort_orderを振り直す
+      const updated = newSections.map((s, i) => ({ ...s, sort_order: i }));
+      setSections(updated);
+
+      // DB更新
+      await Promise.all(
+        updated.map((s) =>
+          supabase
+            .from("sections")
+            .update({ sort_order: s.sort_order })
+            .eq("id", s.id)
+        )
+      );
+    },
+    [sections, supabase]
+  );
+
   const handleGenerateRoutines = useCallback(async () => {
     setGeneratingRoutines(true);
     setRoutineMessage(null);
@@ -172,32 +198,57 @@ export default function SettingsView({
         </p>
 
         <div className="mb-4 space-y-2">
-          {sections.map((section) => (
+          {sections.map((section, index) => (
             <div
               key={section.id}
               className="flex items-center justify-between rounded-lg border border-navy-600 p-3"
             >
-              {editingId === section.id ? (
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSaveEdit(section.id);
-                    if (e.key === "Escape") handleCancelEdit();
-                  }}
-                  onBlur={() => handleSaveEdit(section.id)}
-                  autoFocus
-                  className="flex-1 rounded border border-green-accent bg-navy-900 px-2 py-1 text-white focus:outline-none"
-                />
-              ) : (
-                <span
-                  className="cursor-pointer text-white"
-                  onDoubleClick={() => handleStartEdit(section)}
-                >
-                  {section.name}
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {/* 上下移動ボタン */}
+                <div className="flex flex-col gap-0.5">
+                  <button
+                    onClick={() => handleMoveSection(index, "up")}
+                    disabled={index === 0}
+                    className="rounded p-0.5 text-gray-500 transition hover:bg-navy-600 hover:text-white disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-gray-500"
+                    title="上に移動"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleMoveSection(index, "down")}
+                    disabled={index === sections.length - 1}
+                    className="rounded p-0.5 text-gray-500 transition hover:bg-navy-600 hover:text-white disabled:opacity-20 disabled:hover:bg-transparent disabled:hover:text-gray-500"
+                    title="下に移動"
+                  >
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+                {editingId === section.id ? (
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveEdit(section.id);
+                      if (e.key === "Escape") handleCancelEdit();
+                    }}
+                    onBlur={() => handleSaveEdit(section.id)}
+                    autoFocus
+                    className="flex-1 rounded border border-green-accent bg-navy-900 px-2 py-1 text-white focus:outline-none"
+                  />
+                ) : (
+                  <span
+                    className="cursor-pointer text-white"
+                    onDoubleClick={() => handleStartEdit(section)}
+                  >
+                    {section.name}
+                  </span>
+                )}
+              </div>
               <div className="ml-2 flex gap-2">
                 {editingId === section.id ? (
                   <>
