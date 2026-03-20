@@ -23,6 +23,20 @@ export default function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("sidebar-collapsed") === "true";
+    }
+    return false;
+  });
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("sidebar-collapsed", String(next));
+      return next;
+    });
+  };
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -34,37 +48,57 @@ export default function AppShell({
   return (
     <div className="flex min-h-screen bg-navy-950">
       {/* Desktop Sidebar */}
-      <aside className="hidden w-60 flex-col border-r border-navy-700 bg-navy-900 lg:flex">
-        <div className="p-6">
-          <h1 className="text-xl font-bold text-white">
-            <span className="text-green-accent">t</span>askuma
-          </h1>
+      <aside className={`hidden flex-col border-r border-navy-700 bg-navy-900 transition-all duration-200 lg:flex ${sidebarCollapsed ? "w-16" : "w-60"}`}>
+        <div className={`flex items-center ${sidebarCollapsed ? "justify-center p-4" : "justify-between p-6"}`}>
+          {!sidebarCollapsed && (
+            <h1 className="text-xl font-bold text-white">
+              <span className="text-green-accent">t</span>askuma
+            </h1>
+          )}
+          <button
+            onClick={toggleSidebar}
+            className="rounded-lg p-1.5 text-gray-400 transition hover:bg-navy-700 hover:text-white"
+            title={sidebarCollapsed ? "サイドバーを展開" : "サイドバーを折りたたむ"}
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              {sidebarCollapsed ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              )}
+            </svg>
+          </button>
         </div>
-        <nav className="flex-1 px-3">
+        <nav className={`flex-1 ${sidebarCollapsed ? "px-1" : "px-3"}`}>
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`mb-1 flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition ${
+              title={sidebarCollapsed ? item.label : undefined}
+              className={`mb-1 flex items-center rounded-lg text-sm font-medium transition ${
+                sidebarCollapsed ? "justify-center px-2 py-3" : "gap-3 px-4 py-3"
+              } ${
                 pathname === item.href
                   ? "bg-navy-700 text-green-accent"
                   : "text-gray-400 hover:bg-navy-800 hover:text-white"
               }`}
             >
               <span dangerouslySetInnerHTML={{ __html: item.icon }} />
-              {item.label}
+              {!sidebarCollapsed && item.label}
             </Link>
           ))}
         </nav>
-        <div className="border-t border-navy-700 p-4">
-          <p className="mb-2 truncate text-xs text-gray-500">{user.email}</p>
-          <button
-            onClick={handleSignOut}
-            className="w-full rounded-lg border border-navy-600 py-2 text-sm text-gray-400 transition hover:bg-navy-800 hover:text-white"
-          >
-            ログアウト
-          </button>
-        </div>
+        {!sidebarCollapsed && (
+          <div className="border-t border-navy-700 p-4">
+            <p className="mb-2 truncate text-xs text-gray-500">{user.email}</p>
+            <button
+              onClick={handleSignOut}
+              className="w-full rounded-lg border border-navy-600 py-2 text-sm text-gray-400 transition hover:bg-navy-800 hover:text-white"
+            >
+              ログアウト
+            </button>
+          </div>
+        )}
       </aside>
 
       {/* Main Content */}

@@ -37,9 +37,35 @@ export async function POST(request: Request) {
     existing?.map((t) => t.template_id) ?? []
   );
 
-  // 未生成のルーティンのみ追加
+  // 曜日チェック (0=日, 1=月, ..., 6=土)
+  const targetDayOfWeek = new Date(targetDate + "T00:00:00").getDay();
+  const targetDayOfMonth = new Date(targetDate + "T00:00:00").getDate();
+
+  const shouldGenerate = (r: {
+    recurrence_type?: string;
+    recurrence_days?: number[];
+    is_routine?: boolean;
+  }) => {
+    const type = r.recurrence_type ?? (r.is_routine ? "daily" : "none");
+    switch (type) {
+      case "daily":
+        return true;
+      case "weekdays":
+        return targetDayOfWeek >= 1 && targetDayOfWeek <= 5;
+      case "weekly":
+        return (r.recurrence_days ?? []).includes(targetDayOfWeek);
+      case "monthly":
+        // 毎月同じ日（1日 = recurrence_days[0]、未設定なら1日）
+        const dayOfMonth = r.recurrence_days?.[0] ?? 1;
+        return targetDayOfMonth === dayOfMonth;
+      default:
+        return false;
+    }
+  };
+
+  // 未生成かつ繰り返しルールに合致するルーティンのみ追加
   const newTasks = routines
-    .filter((r) => !existingTemplateIds.has(r.id))
+    .filter((r) => !existingTemplateIds.has(r.id) && shouldGenerate(r))
     .map((r) => ({
       user_id: user.id,
       template_id: r.id,

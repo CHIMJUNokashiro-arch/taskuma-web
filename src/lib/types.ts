@@ -113,6 +113,18 @@ export type Section = {
   created_at: string;
 };
 
+export type RecurrenceType = "none" | "daily" | "weekdays" | "weekly" | "monthly";
+
+export const RECURRENCE_LABELS: Record<RecurrenceType, string> = {
+  none: "1回のみ",
+  daily: "毎日",
+  weekdays: "平日のみ",
+  weekly: "毎週",
+  monthly: "毎月",
+};
+
+export const WEEKDAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
+
 export type TaskTemplate = {
   id: string;
   user_id: string;
@@ -120,11 +132,13 @@ export type TaskTemplate = {
   title: string;
   estimated_minutes: number;
   is_routine: boolean;
+  recurrence_type: RecurrenceType;
+  recurrence_days: number[]; // weekly: 0=日,1=月,...6=土
   sort_order: number;
   eisenhower_quadrant: EisenhowerQuadrant | null;
   time_block: TimeBlock | null;
-  scheduled_start: string | null; // HH:MM format
-  scheduled_end: string | null;   // HH:MM format
+  scheduled_start: string | null;
+  scheduled_end: string | null;
   created_at: string;
 };
 

@@ -2,11 +2,13 @@
 
 import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { TaskTemplate, Section, EisenhowerQuadrant } from "@/lib/types";
+import type { TaskTemplate, Section, EisenhowerQuadrant, RecurrenceType } from "@/lib/types";
 import {
   EISENHOWER_QUADRANTS,
   EISENHOWER_LABELS,
   EISENHOWER_COLORS,
+  RECURRENCE_LABELS,
+  WEEKDAY_LABELS,
 } from "@/lib/types";
 
 export default function TemplatesView({
@@ -23,6 +25,8 @@ export default function TemplatesView({
   const [estimated, setEstimated] = useState(30);
   const [sectionId, setSectionId] = useState<string | null>(null);
   const [isRoutine, setIsRoutine] = useState(false);
+  const [recurrenceType, setRecurrenceType] = useState<RecurrenceType>("none");
+  const [recurrenceDays, setRecurrenceDays] = useState<number[]>([]);
   const [quadrant, setQuadrant] = useState<EisenhowerQuadrant | null>(null);
   const [scheduledStart, setScheduledStart] = useState("");
   const [scheduledEnd, setScheduledEnd] = useState("");
@@ -33,6 +37,8 @@ export default function TemplatesView({
     setEstimated(30);
     setSectionId(null);
     setIsRoutine(false);
+    setRecurrenceType("none");
+    setRecurrenceDays([]);
     setQuadrant(null);
     setScheduledStart("");
     setScheduledEnd("");
@@ -59,7 +65,9 @@ export default function TemplatesView({
         title: title.trim(),
         estimated_minutes: estimated,
         section_id: sectionId,
-        is_routine: isRoutine,
+        is_routine: recurrenceType !== "none",
+        recurrence_type: recurrenceType,
+        recurrence_days: recurrenceDays,
         eisenhower_quadrant: quadrant,
         scheduled_start: scheduledStart || null,
         scheduled_end: scheduledEnd || null,
@@ -72,7 +80,7 @@ export default function TemplatesView({
       setTemplates((prev) => [...prev, data]);
       resetForm();
     }
-  }, [title, estimated, sectionId, isRoutine, quadrant, scheduledStart, scheduledEnd, templates, supabase]);
+  }, [title, estimated, sectionId, recurrenceType, recurrenceDays, quadrant, scheduledStart, scheduledEnd, templates, supabase]);
 
   const handleUpdate = useCallback(
     async (id: string) => {
@@ -82,7 +90,9 @@ export default function TemplatesView({
           title: title.trim(),
           estimated_minutes: estimated,
           section_id: sectionId,
-          is_routine: isRoutine,
+          is_routine: recurrenceType !== "none",
+          recurrence_type: recurrenceType,
+          recurrence_days: recurrenceDays,
           eisenhower_quadrant: quadrant,
           scheduled_start: scheduledStart || null,
           scheduled_end: scheduledEnd || null,
@@ -97,7 +107,9 @@ export default function TemplatesView({
                 title: title.trim(),
                 estimated_minutes: estimated,
                 section_id: sectionId,
-                is_routine: isRoutine,
+                is_routine: recurrenceType !== "none",
+                recurrence_type: recurrenceType,
+                recurrence_days: recurrenceDays,
                 eisenhower_quadrant: quadrant,
                 scheduled_start: scheduledStart || null,
                 scheduled_end: scheduledEnd || null,
@@ -107,7 +119,7 @@ export default function TemplatesView({
       );
       resetForm();
     },
-    [title, estimated, sectionId, isRoutine, quadrant, scheduledStart, scheduledEnd, supabase]
+    [title, estimated, sectionId, recurrenceType, recurrenceDays, quadrant, scheduledStart, scheduledEnd, supabase]
   );
 
   const handleDelete = useCallback(
@@ -124,6 +136,8 @@ export default function TemplatesView({
     setEstimated(template.estimated_minutes);
     setSectionId(template.section_id);
     setIsRoutine(template.is_routine);
+    setRecurrenceType(template.recurrence_type ?? (template.is_routine ? "daily" : "none"));
+    setRecurrenceDays(template.recurrence_days ?? []);
     setQuadrant(template.eisenhower_quadrant);
     setScheduledStart(template.scheduled_start ?? "");
     setScheduledEnd(template.scheduled_end ?? "");
@@ -250,15 +264,51 @@ export default function TemplatesView({
               </div>
             </div>
           </div>
-          <label className="mb-4 flex items-center gap-2 text-sm text-gray-300">
-            <input
-              type="checkbox"
-              checked={isRoutine}
-              onChange={(e) => setIsRoutine(e.target.checked)}
-              className="rounded border-navy-600 bg-navy-900 text-green-accent focus:ring-green-accent"
-            />
-            毎日繰り返し（ルーティン）
-          </label>
+          {/* 繰り返し設定 */}
+          <div className="mb-4">
+            <label className="mb-1 block text-xs text-gray-400">繰り返し</label>
+            <div className="flex flex-wrap gap-1.5">
+              {(Object.keys(RECURRENCE_LABELS) as RecurrenceType[]).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    setRecurrenceType(type);
+                    if (type !== "weekly") setRecurrenceDays([]);
+                  }}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    recurrenceType === type
+                      ? "border border-green-accent bg-green-accent/20 text-green-accent"
+                      : "border border-navy-600 text-gray-500 hover:border-navy-400"
+                  }`}
+                >
+                  {RECURRENCE_LABELS[type]}
+                </button>
+              ))}
+            </div>
+            {recurrenceType === "weekly" && (
+              <div className="mt-2 flex gap-1">
+                {WEEKDAY_LABELS.map((label, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => {
+                      setRecurrenceDays((prev) =>
+                        prev.includes(i) ? prev.filter((d) => d !== i) : [...prev, i].sort()
+                      );
+                    }}
+                    className={`h-8 w-8 rounded-full text-xs font-medium transition ${
+                      recurrenceDays.includes(i)
+                        ? "bg-green-accent text-navy-950"
+                        : "border border-navy-600 text-gray-500 hover:border-navy-400"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex gap-2">
             <button
               onClick={() =>
@@ -305,9 +355,11 @@ export default function TemplatesView({
                     {template.scheduled_start}–{template.scheduled_end ?? ""}
                   </span>
                 )}
-                {template.is_routine && (
+                {(template.recurrence_type ?? (template.is_routine ? "daily" : "none")) !== "none" && (
                   <span className="rounded-full bg-green-accent/10 px-2 py-0.5 text-xs text-green-accent">
-                    ルーティン
+                    {RECURRENCE_LABELS[(template.recurrence_type ?? "daily") as RecurrenceType]}
+                    {(template.recurrence_type ?? "daily") === "weekly" && template.recurrence_days?.length > 0 &&
+                      `(${template.recurrence_days.map((d: number) => WEEKDAY_LABELS[d]).join("")})`}
                   </span>
                 )}
               </div>
