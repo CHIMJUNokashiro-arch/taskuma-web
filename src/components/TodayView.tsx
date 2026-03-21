@@ -254,16 +254,17 @@ export default function TodayView({
       const task = tasks.find((t) => t.id === taskId);
       if (!task) return;
 
-      const elapsed = task.started_at
+      const startedAt = task.started_at;
+      const elapsed = startedAt
         ? Math.round(
-            (Date.now() - new Date(task.started_at).getTime()) / 60000
+            (Date.now() - new Date(startedAt).getTime()) / 60000
           )
         : 0;
 
       const completedAt = new Date().toISOString();
       const actualMinutes = (task.actual_minutes ?? 0) + elapsed;
 
-      // Optimistic update
+      // Optimistic update — started_atは保持（Googleカレンダー用）
       setTasks((prev) =>
         prev.map((t) =>
           t.id === taskId
@@ -272,38 +273,53 @@ export default function TodayView({
                 status: "done" as const,
                 completed_at: completedAt,
                 actual_minutes: actualMinutes,
-                started_at: null,
               }
             : t
         )
       );
 
-      // DB update (background)
-      supabase
+      // DB update — started_atを保持（エクスポートで使う）
+      await supabase
         .from("daily_tasks")
         .update({
           status: "done",
           completed_at: completedAt,
           actual_minutes: actualMinutes,
-          started_at: null,
         })
-        .eq("id", taskId)
-        .then(() => {});
+        .eq("id", taskId);
 
-      // Googleカレンダーにエクスポート（background、エラー無視）
+      // Googleカレンダーにエクスポート
       if (!task.google_event_id) {
-        fetch("/api/google/export", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            taskId,
-            title: task.title,
-            startedAt: task.started_at,
-            completedAt,
-            actualMinutes,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          }),
-        }).catch(() => {});
+        try {
+          const res = await fetch("/api/google/export", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              taskId,
+              title: task.title,
+              startedAt,
+              completedAt,
+              actualMinutes,
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.eventId) {
+              setTasks((prev) =>
+                prev.map((t) =>
+                  t.id === taskId
+                    ? { ...t, google_event_id: data.eventId }
+                    : t
+                )
+              );
+            }
+          } else {
+            console.warn("Google Calendar export failed:", await res.text());
+          }
+        } catch (e) {
+          console.warn("Google Calendar export error:", e);
+        }
       }
     },
     [tasks, supabase]
