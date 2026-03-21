@@ -429,7 +429,8 @@ export default function TodayView({
       timeBlock: TimeBlock | null,
       scheduledStart: string | null = null,
       scheduledEnd: string | null = null,
-      targetDate: string | null = null
+      targetDate: string | null = null,
+      startImmediately = false
     ) => {
       const taskDate = targetDate || date;
       const {
@@ -441,6 +442,8 @@ export default function TodayView({
         (max, t) => Math.max(max, t.sort_order ?? 0),
         0
       );
+
+      const now = new Date().toISOString();
 
       // 時間指定がある場合は完了済みタスクとして追加
       const insertData = timeRange
@@ -471,7 +474,9 @@ export default function TodayView({
             scheduled_start: scheduledStart,
             scheduled_end: scheduledEnd,
             sort_order: maxSort + 1,
-            status: "pending" as const,
+            ...(startImmediately
+              ? { status: "in_progress" as const, started_at: now }
+              : { status: "pending" as const }),
           };
 
       const { data } = await supabase

@@ -28,7 +28,8 @@ export default function AddTaskForm({
     timeBlock: TimeBlock | null,
     scheduledStart: string | null,
     scheduledEnd: string | null,
-    targetDate: string | null
+    targetDate: string | null,
+    startImmediately?: boolean
   ) => void;
   date: string;
   initialStartTime?: string | null;
@@ -93,8 +94,7 @@ export default function AddTaskForm({
     return Math.max(Math.round((e.getTime() - s.getTime()) / 60000), 0);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const doSubmit = (startImmediately = false) => {
     if (!title.trim()) return;
 
     let timeRange: { startedAt: string; completedAt: string; actualMinutes: number } | null = null;
@@ -110,7 +110,7 @@ export default function AddTaskForm({
 
     onAdd(
       title.trim(), estimated, sectionId, quadrant, timeRange, timeBlock,
-      scheduledStart || null, scheduledEnd || null, dateDiffers
+      scheduledStart || null, scheduledEnd || null, dateDiffers, startImmediately
     );
     setTitle("");
     setEstimated(60);
@@ -124,6 +124,11 @@ export default function AddTaskForm({
     setStartTime("");
     setEndTime("");
     setIsOpen(false);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    doSubmit(false);
   };
 
   if (!isOpen) {
@@ -298,6 +303,13 @@ export default function AddTaskForm({
           className="rounded-lg bg-green-accent px-4 py-2 text-sm font-semibold text-navy-950 transition hover:bg-green-accent-dark"
         >
           追加
+        </button>
+        <button
+          type="button"
+          onClick={() => doSubmit(true)}
+          className="rounded-lg border border-green-accent bg-green-accent/10 px-4 py-2 text-sm font-semibold text-green-accent transition hover:bg-green-accent/20"
+        >
+          追加して開始
         </button>
         <button
           type="button"
