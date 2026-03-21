@@ -164,6 +164,21 @@ export type DailyTask = {
   created_at: string;
 };
 
+export type PeriodType = "weekly" | "monthly";
+
+export type PeriodicGoal = {
+  id: string;
+  user_id: string;
+  title: string;
+  period_type: PeriodType;
+  period_start: string; // YYYY-MM-DD
+  period_end: string;   // YYYY-MM-DD
+  status: "pending" | "done";
+  completed_at: string | null;
+  sort_order: number;
+  created_at: string;
+};
+
 export type GoogleToken = {
   id: string;
   user_id: string;

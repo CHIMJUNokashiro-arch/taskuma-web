@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { DailyTask, Section, EisenhowerQuadrant, TimeBlock } from "@/lib/types";
+import type { DailyTask, Section, EisenhowerQuadrant, TimeBlock, PeriodicGoal } from "@/lib/types";
 import SortableTaskCard from "./SortableTaskCard";
 import TaskCard from "./TaskCard";
 import AddTaskForm from "./AddTaskForm";
@@ -11,6 +11,7 @@ import EndTimeBar from "./EndTimeBar";
 import EisenhowerSummary from "./EisenhowerSummary";
 import TimelineView from "./TimelineView";
 import AIChatPanel from "./AIChatPanel";
+import PeriodicGoals from "./PeriodicGoals";
 import {
   DndContext,
   closestCenter,
@@ -30,10 +31,14 @@ export default function TodayView({
   initialTasks,
   sections,
   date,
+  initialWeeklyGoals = [],
+  initialMonthlyGoals = [],
 }: {
   initialTasks: DailyTask[];
   sections: Section[];
   date: string;
+  initialWeeklyGoals?: PeriodicGoal[];
+  initialMonthlyGoals?: PeriodicGoal[];
 }) {
   const [tasks, setTasks] = useState<DailyTask[]>(() => {
     // Deduplicate initial tasks
@@ -681,6 +686,13 @@ export default function TodayView({
             {routineMessage}
           </div>
         )}
+
+        {/* 週次・月次の目標 */}
+        <PeriodicGoals
+          initialWeeklyGoals={initialWeeklyGoals}
+          initialMonthlyGoals={initialMonthlyGoals}
+          date={date}
+        />
 
         {/* タスクタイムライン */}
         {sectionOrder.map((section) => {
