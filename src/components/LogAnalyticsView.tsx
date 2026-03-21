@@ -37,6 +37,7 @@ export default function LogAnalyticsView({
         completionCount: number;
         totalCount: number;
         totalMinutes: number;
+        completionDates: string[];
       }
     >();
 
@@ -52,12 +53,14 @@ export default function LogAnalyticsView({
           completionCount: 0,
           totalCount: 0,
           totalMinutes: 0,
+          completionDates: [],
         });
       }
       const group = groups.get(key)!;
       group.totalCount += 1;
       if (task.status === "done") {
         group.completionCount += 1;
+        group.completionDates.push(task.date);
       }
       group.totalMinutes += task.actual_minutes ?? task.estimated_minutes ?? 0;
     });
@@ -232,7 +235,14 @@ export default function LogAnalyticsView({
               <div className="w-20 text-center">平均</div>
             </div>
 
-            {analytics.map((item, i) => (
+            {analytics.map((item, i) => {
+              // 完了日の重複カウント（同日に複数回完了した場合）
+              const dateCounts = new Map<string, number>();
+              item.completionDates.forEach((d) => {
+                dateCounts.set(d, (dateCounts.get(d) ?? 0) + 1);
+              });
+
+              return (
               <div
                 key={i}
                 className="rounded-lg border border-navy-600 p-3"
@@ -267,6 +277,23 @@ export default function LogAnalyticsView({
                   </div>
                 </div>
 
+                {/* 完了日の内訳（PC・複数回完了時） */}
+                {item.completionCount > 1 && (
+                  <div className="mt-1.5 hidden flex-wrap gap-1 sm:flex sm:pl-0">
+                    {Array.from(dateCounts.entries())
+                      .sort(([a], [b]) => a.localeCompare(b))
+                      .map(([d, count]) => {
+                        const dt = new Date(d + "T00:00:00");
+                        const label = dt.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", weekday: "short" });
+                        return (
+                          <span key={d} className="rounded bg-navy-700 px-1.5 py-0.5 text-[10px] text-gray-400">
+                            {label}{count > 1 ? ` ×${count}` : ""} ✓
+                          </span>
+                        );
+                      })}
+                  </div>
+                )}
+
                 {/* モバイル表示 */}
                 <div className="sm:hidden">
                   <div className="mb-1 flex items-center gap-2">
@@ -295,9 +322,26 @@ export default function LogAnalyticsView({
                         : "-"}
                     </span>
                   </div>
+                  {/* 完了日の内訳（モバイル・複数回完了時） */}
+                  {item.completionCount > 1 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      {Array.from(dateCounts.entries())
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([d, count]) => {
+                          const dt = new Date(d + "T00:00:00");
+                          const label = dt.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
+                          return (
+                            <span key={d} className="rounded bg-navy-700 px-1.5 py-0.5 text-[10px] text-gray-400">
+                              {label}{count > 1 ? ` ×${count}` : ""} ✓
+                            </span>
+                          );
+                        })}
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
