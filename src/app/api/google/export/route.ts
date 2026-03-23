@@ -72,6 +72,22 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id);
   });
 
+  // トークンが期限切れの場合、事前にリフレッシュを試みる
+  const now = Date.now();
+  const expiryDate = new Date(tokenRow.token_expires_at).getTime();
+  if (expiryDate < now + 60000) {
+    try {
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      oauth2Client.setCredentials(credentials);
+    } catch (refreshError) {
+      console.error("Token refresh failed:", refreshError);
+      return NextResponse.json(
+        { error: "Googleトークンの更新に失敗しました。設定で再接続してください。" },
+        { status: 401 }
+      );
+    }
+  }
+
   try {
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
     const tz = timezone || "Asia/Tokyo";

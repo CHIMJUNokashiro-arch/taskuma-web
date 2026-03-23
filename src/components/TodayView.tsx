@@ -294,7 +294,7 @@ export default function TodayView({
         .eq("id", taskId);
 
       // Googleカレンダーにエクスポート
-      if (!task.google_event_id) {
+      if (!task.google_event_id && googleConnected) {
         try {
           const res = await fetch("/api/google/export", {
             method: "POST",
@@ -320,14 +320,24 @@ export default function TodayView({
               );
             }
           } else {
-            console.warn("Google Calendar export failed:", await res.text());
+            const errText = await res.text();
+            console.warn("Google Calendar export failed:", res.status, errText);
+            if (res.status === 403 || res.status === 401) {
+              setExportMessage("⚠️ Googleカレンダーの権限エラー。設定で再接続してください。");
+              setTimeout(() => setExportMessage(null), 6000);
+            } else {
+              setExportMessage(`⚠️ カレンダー連携失敗: 「カレンダー送信」で再送できます`);
+              setTimeout(() => setExportMessage(null), 5000);
+            }
           }
         } catch (e) {
           console.warn("Google Calendar export error:", e);
+          setExportMessage("⚠️ カレンダー連携失敗: 「カレンダー送信」で再送できます");
+          setTimeout(() => setExportMessage(null), 5000);
         }
       }
     },
-    [tasks, supabase]
+    [tasks, supabase, googleConnected]
   );
 
   const handleRevertTask = useCallback(
