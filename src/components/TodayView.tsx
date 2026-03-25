@@ -231,7 +231,7 @@ export default function TodayView({
     async (taskId: string) => {
       const now = new Date().toISOString();
 
-      // Optimistic update — only update the target task, allow multiple in_progress
+      // Optimistic update
       setTasks((prev) =>
         prev.map((t) => {
           if (t.id === taskId) {
@@ -241,15 +241,26 @@ export default function TodayView({
         })
       );
 
-      // DB update (background)
-      supabase
+      // DB update
+      const { error } = await supabase
         .from("daily_tasks")
         .update({
           status: "in_progress",
           started_at: now,
         })
-        .eq("id", taskId)
-        .then(() => {});
+        .eq("id", taskId);
+
+      if (error) {
+        console.error("Failed to start task:", error);
+        // Revert optimistic update
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === taskId
+              ? { ...t, status: "pending" as const, started_at: null }
+              : t
+          )
+        );
+      }
     },
     [supabase]
   );
@@ -342,47 +353,52 @@ export default function TodayView({
 
   const handleRevertTask = useCallback(
     async (taskId: string) => {
+      const prevTask = tasks.find((t) => t.id === taskId);
       // Optimistic update
       setTasks((prev) =>
         prev.map((t) =>
           t.id === taskId
-            ? {
-                ...t,
-                status: "pending" as const,
-                completed_at: null,
-                started_at: null,
-              }
+            ? { ...t, status: "pending" as const, completed_at: null, started_at: null }
             : t
         )
       );
 
-      // DB update (background)
-      supabase
+      const { error } = await supabase
         .from("daily_tasks")
-        .update({
-          status: "pending",
-          completed_at: null,
-          started_at: null,
-        })
-        .eq("id", taskId)
-        .then(() => {});
+        .update({ status: "pending", completed_at: null, started_at: null })
+        .eq("id", taskId);
+
+      if (error) {
+        console.error("Failed to revert task:", error);
+        if (prevTask) {
+          setTasks((prev) => prev.map((t) => (t.id === taskId ? prevTask : t)));
+        }
+      }
     },
-    [supabase]
+    [supabase, tasks]
   );
 
   const handleDeleteTask = useCallback(
     async (taskId: string) => {
+      const prevTask = tasks.find((t) => t.id === taskId);
       // Optimistic update
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
 
-      // DB delete (background)
-      supabase.from("daily_tasks").delete().eq("id", taskId).then(() => {});
+      const { error } = await supabase.from("daily_tasks").delete().eq("id", taskId);
+
+      if (error) {
+        console.error("Failed to delete task:", error);
+        if (prevTask) {
+          setTasks((prev) => [...prev, prevTask]);
+        }
+      }
     },
-    [supabase]
+    [supabase, tasks]
   );
 
   const handleUpdateTask = useCallback(
     async (taskId: string, updates: Partial<DailyTask>) => {
+      const prevTask = tasks.find((t) => t.id === taskId);
       // Optimistic update
       setTasks((prev) =>
         prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
@@ -393,13 +409,19 @@ export default function TodayView({
           ([key]) => !["id", "user_id", "created_at"].includes(key)
         )
       );
-      supabase
+      const { error } = await supabase
         .from("daily_tasks")
         .update(dbUpdates)
-        .eq("id", taskId)
-        .then(() => {});
+        .eq("id", taskId);
+
+      if (error) {
+        console.error("Failed to update task:", error);
+        if (prevTask) {
+          setTasks((prev) => prev.map((t) => (t.id === taskId ? prevTask : t)));
+        }
+      }
     },
-    [supabase]
+    [supabase, tasks]
   );
 
   const handleAddToRoutine = useCallback(
