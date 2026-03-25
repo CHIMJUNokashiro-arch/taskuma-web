@@ -39,6 +39,7 @@ export default function TaskCard({
   const [editSectionId, setEditSectionId] = useState<string | null>(task.section_id);
   const [editScheduledStart, setEditScheduledStart] = useState(task.scheduled_start || "");
   const [editScheduledEnd, setEditScheduledEnd] = useState(task.scheduled_end || "");
+  const [editDate, setEditDate] = useState(task.date);
   const composingRef = useRef(false);
 
   useEffect(() => {
@@ -98,6 +99,7 @@ export default function TaskCard({
     setEditSectionId(task.section_id);
     setEditScheduledStart(task.scheduled_start || "");
     setEditScheduledEnd(task.scheduled_end || "");
+    setEditDate(task.date);
     setEditing(true);
   };
 
@@ -112,8 +114,13 @@ export default function TaskCard({
       updates.estimated_minutes = editEstimated;
     }
 
-    // Build base date from task.date for creating new timestamps
-    const baseDate = task.date ? new Date(task.date + "T00:00:00") : new Date();
+    // 日付変更
+    if (editDate && editDate !== task.date) {
+      updates.date = editDate;
+    }
+
+    // Build base date from editDate for creating new timestamps
+    const baseDate = editDate ? new Date(editDate + "T00:00:00") : new Date();
 
     // Handle start time
     if (editStartTime) {
@@ -270,8 +277,14 @@ export default function TaskCard({
             </div>
           )}
           <div>
-            <label className="mb-1 block text-[10px] text-gray-500">予定時間</label>
+            <label className="mb-1 block text-[10px] text-gray-500">日付・予定時間</label>
             <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                className="w-[120px] rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
+              />
               <input
                 type="time"
                 value={editScheduledStart}
@@ -296,6 +309,11 @@ export default function TaskCard({
                 className="w-24 rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
               />
             </div>
+            {editDate !== task.date && (
+              <p className="mt-1 text-[10px] text-yellow-400">
+                ※ {new Date(editDate + "T00:00:00").toLocaleDateString("ja-JP", { month: "short", day: "numeric", weekday: "short" })} に移動します
+              </p>
+            )}
           </div>
           <div className="flex gap-2">
             <button

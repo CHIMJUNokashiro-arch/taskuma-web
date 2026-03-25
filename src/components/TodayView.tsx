@@ -399,10 +399,16 @@ export default function TodayView({
   const handleUpdateTask = useCallback(
     async (taskId: string, updates: Partial<DailyTask>) => {
       const prevTask = tasks.find((t) => t.id === taskId);
-      // Optimistic update
-      setTasks((prev) =>
-        prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
-      );
+      const movingToAnotherDate = updates.date && updates.date !== date;
+
+      // Optimistic update — 別日に移動する場合はリストから削除
+      if (movingToAnotherDate) {
+        setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      } else {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
+        );
+      }
 
       const dbUpdates = Object.fromEntries(
         Object.entries(updates).filter(
@@ -417,7 +423,11 @@ export default function TodayView({
       if (error) {
         console.error("Failed to update task:", error);
         if (prevTask) {
-          setTasks((prev) => prev.map((t) => (t.id === taskId ? prevTask : t)));
+          if (movingToAnotherDate) {
+            setTasks((prev) => [...prev, prevTask]);
+          } else {
+            setTasks((prev) => prev.map((t) => (t.id === taskId ? prevTask : t)));
+          }
         }
       }
     },
