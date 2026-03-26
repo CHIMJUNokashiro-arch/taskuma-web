@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import type { DailyTask, Section, TimeBlock } from "@/lib/types";
+import type { DailyTask, Section, TimeBlock, EisenhowerQuadrant } from "@/lib/types";
 import {
+  EISENHOWER_QUADRANTS,
   EISENHOWER_LABELS,
   EISENHOWER_COLORS,
   TIME_BLOCKS,
@@ -39,6 +40,7 @@ export default function TaskCard({
   const [editSectionId, setEditSectionId] = useState<string | null>(task.section_id);
   const [editScheduledStart, setEditScheduledStart] = useState(task.scheduled_start || "");
   const [editScheduledEnd, setEditScheduledEnd] = useState(task.scheduled_end || "");
+  const [editQuadrant, setEditQuadrant] = useState<EisenhowerQuadrant | null>(task.eisenhower_quadrant);
   const [editDate, setEditDate] = useState(task.date);
   const [editEndDate, setEditEndDate] = useState(() => {
     if (task.completed_at) {
@@ -105,6 +107,7 @@ export default function TaskCard({
     setEditSectionId(task.section_id);
     setEditScheduledStart(task.scheduled_start || "");
     setEditScheduledEnd(task.scheduled_end || "");
+    setEditQuadrant(task.eisenhower_quadrant);
     setEditDate(task.date);
     setEditEndDate(task.completed_at ? task.completed_at.split("T")[0] : task.date);
     setEditing(true);
@@ -168,6 +171,10 @@ export default function TaskCard({
 
     if (editSectionId !== task.section_id) {
       updates.section_id = editSectionId;
+    }
+
+    if (editQuadrant !== task.eisenhower_quadrant) {
+      updates.eisenhower_quadrant = editQuadrant;
     }
 
     if ((editScheduledStart || null) !== (task.scheduled_start || null)) {
@@ -263,6 +270,26 @@ export default function TaskCard({
               </select>
             </div>
           )}
+          {/* 重要度・緊急度 */}
+          <div>
+            <label className="mb-1 block text-[10px] text-gray-500">重要度・緊急度</label>
+            <div className="flex flex-wrap gap-1">
+              {EISENHOWER_QUADRANTS.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={() => setEditQuadrant(editQuadrant === q ? null : q)}
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-medium transition ${
+                    editQuadrant === q
+                      ? `${EISENHOWER_COLORS[q].bg} ${EISENHOWER_COLORS[q].text} ${EISENHOWER_COLORS[q].border} border`
+                      : "border border-navy-600 text-gray-500 hover:border-navy-400"
+                  }`}
+                >
+                  {EISENHOWER_LABELS[q]}
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <label className="mb-1 block text-[10px] text-gray-500">日付・予定時間</label>
             <div className="flex items-center gap-2">
@@ -302,7 +329,7 @@ export default function TaskCard({
               </p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={handleSave}
               className="rounded-lg bg-green-accent px-3 py-1 text-xs font-semibold text-navy-950 transition hover:bg-green-accent-dark"
@@ -315,6 +342,15 @@ export default function TaskCard({
             >
               取消
             </button>
+            {onAddToRoutine && (
+              <button
+                onClick={() => { onAddToRoutine(task); setEditing(false); }}
+                className="ml-auto rounded-lg border border-sky-500/30 px-3 py-1 text-xs text-sky-400 transition hover:bg-sky-500/10"
+                title="ルーティンに追加"
+              >
+                ルーティン登録
+              </button>
+            )}
           </div>
         </div>
       </div>
