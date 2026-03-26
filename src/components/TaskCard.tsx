@@ -40,6 +40,12 @@ export default function TaskCard({
   const [editScheduledStart, setEditScheduledStart] = useState(task.scheduled_start || "");
   const [editScheduledEnd, setEditScheduledEnd] = useState(task.scheduled_end || "");
   const [editDate, setEditDate] = useState(task.date);
+  const [editEndDate, setEditEndDate] = useState(() => {
+    if (task.completed_at) {
+      return task.completed_at.split("T")[0];
+    }
+    return task.date;
+  });
   const composingRef = useRef(false);
 
   useEffect(() => {
@@ -100,6 +106,7 @@ export default function TaskCard({
     setEditScheduledStart(task.scheduled_start || "");
     setEditScheduledEnd(task.scheduled_end || "");
     setEditDate(task.date);
+    setEditEndDate(task.completed_at ? task.completed_at.split("T")[0] : task.date);
     setEditing(true);
   };
 
@@ -125,51 +132,25 @@ export default function TaskCard({
     // Handle start time
     if (editStartTime) {
       const [h, m] = editStartTime.split(":").map(Number);
-      if (task.started_at) {
-        // Existing started_at: update time portion
-        const orig = new Date(task.started_at);
-        const updated = new Date(orig);
-        updated.setHours(h, m, 0, 0);
-        if (updated.toISOString() !== orig.toISOString()) {
-          updates.started_at = updated.toISOString();
-        }
-      } else {
-        // No started_at: create new timestamp from task date + input time
-        const newStart = new Date(baseDate);
-        newStart.setHours(h, m, 0, 0);
+      const newStart = new Date(baseDate);
+      newStart.setHours(h, m, 0, 0);
+      const origStart = task.started_at ? new Date(task.started_at) : null;
+      if (!origStart || newStart.toISOString() !== origStart.toISOString()) {
         updates.started_at = newStart.toISOString();
       }
     }
 
-    // Handle end time
+    // Handle end time (with separate end date for overnight tasks)
     if (editEndTime) {
       const [h, m] = editEndTime.split(":").map(Number);
-      if (task.completed_at) {
-        // Existing completed_at: update time portion
-        const orig = new Date(task.completed_at);
-        const updated = new Date(orig);
-        updated.setHours(h, m, 0, 0);
-        if (updated.toISOString() !== orig.toISOString()) {
-          updates.completed_at = updated.toISOString();
-          // Recalculate actual_minutes from start to new end
-          const startRef = updates.started_at
-            ? new Date(updates.started_at)
-            : task.started_at
-            ? new Date(task.started_at)
-            : null;
-          if (startRef) {
-            updates.actual_minutes = Math.max(0, Math.round((updated.getTime() - startRef.getTime()) / 60000));
-          } else {
-            const diffMinutes = Math.round((updated.getTime() - orig.getTime()) / 60000);
-            updates.actual_minutes = Math.max(0, (task.actual_minutes ?? 0) + diffMinutes);
-          }
-        }
-      } else {
-        // No completed_at: create new timestamp from task date + input time
-        const newEnd = new Date(baseDate);
-        newEnd.setHours(h, m, 0, 0);
+      const endDateBase = new Date((editEndDate || editDate) + "T00:00:00");
+      const newEnd = new Date(endDateBase);
+      newEnd.setHours(h, m, 0, 0);
+
+      const origEnd = task.completed_at ? new Date(task.completed_at) : null;
+      if (!origEnd || newEnd.toISOString() !== origEnd.toISOString()) {
         updates.completed_at = newEnd.toISOString();
-        // Calculate actual_minutes from start to end
+        // Recalculate actual_minutes from start to new end
         const startRef = updates.started_at
           ? new Date(updates.started_at)
           : task.started_at
@@ -247,8 +228,14 @@ export default function TaskCard({
               />
             </div>
             {(task.status === "done" || task.completed_at) && (
-              <div className="flex items-center gap-1.5">
+              <>
                 <label className="text-[10px] text-gray-500">終了</label>
+                <input
+                  type="date"
+                  value={editEndDate}
+                  onChange={(e) => setEditEndDate(e.target.value)}
+                  className="w-[110px] rounded-lg border border-navy-600 bg-navy-900 px-1.5 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
+                />
                 <input
                   type="time"
                   value={editEndTime}
@@ -256,7 +243,7 @@ export default function TaskCard({
                   placeholder="--:--"
                   className="rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
                 />
-              </div>
+              </>
             )}
           </div>
           {sections && sections.length > 0 && (
