@@ -161,6 +161,7 @@ export type DailyTask = {
   time_block: TimeBlock | null;
   scheduled_start: string | null; // HH:MM format
   scheduled_end: string | null;   // HH:MM format
+  dismissed: boolean | null;
   created_at: string;
 };
 

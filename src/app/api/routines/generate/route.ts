@@ -26,12 +26,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "No routines found", count: 0 });
   }
 
-  // 既に当日分が生成済みかチェック
+  // 既に当日分が生成済みかチェック（dismissed含む＝削除済みも再生成しない）
   const { data: existing } = await supabase
     .from("daily_tasks")
     .select("template_id")
     .eq("date", targetDate)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .not("template_id", "is", null);
 
   const existingTemplateIds = new Set(
     existing?.map((t) => t.template_id) ?? []

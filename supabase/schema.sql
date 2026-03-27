@@ -97,6 +97,9 @@ ALTER TABLE daily_tasks ADD COLUMN scheduled_end TEXT;
 ALTER TABLE task_templates ADD COLUMN scheduled_start TEXT;
 ALTER TABLE task_templates ADD COLUMN scheduled_end TEXT;
 
+-- Dismissed flag for soft-delete (prevents routine re-generation after user deletes)
+ALTER TABLE daily_tasks ADD COLUMN dismissed BOOLEAN DEFAULT FALSE;
+
 -- Realtime subscriptions
 ALTER PUBLICATION supabase_realtime ADD TABLE daily_tasks;
 ALTER PUBLICATION supabase_realtime ADD TABLE sections;

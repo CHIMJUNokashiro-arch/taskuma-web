@@ -202,17 +202,19 @@ export default function TodayView({
           if (payload.eventType === "INSERT") {
             setTasks((prev) => {
               const newTask = payload.new as DailyTask;
+              if (newTask.dismissed) return prev;
               if (prev.some((t) => t.id === newTask.id)) return prev;
               return [...prev, newTask];
             });
           } else if (payload.eventType === "UPDATE") {
-            setTasks((prev) =>
-              prev.map((t) =>
-                t.id === (payload.new as DailyTask).id
-                  ? (payload.new as DailyTask)
-                  : t
-              )
-            );
+            const updated = payload.new as DailyTask;
+            if (updated.dismissed) {
+              setTasks((prev) => prev.filter((t) => t.id !== updated.id));
+            } else {
+              setTasks((prev) =>
+                prev.map((t) => (t.id === updated.id ? updated : t))
+              );
+            }
           } else if (payload.eventType === "DELETE") {
             setTasks((prev) =>
               prev.filter((t) => t.id !== (payload.old as { id: string }).id)
@@ -384,7 +386,11 @@ export default function TodayView({
       // Optimistic update
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
 
-      const { error } = await supabase.from("daily_tasks").delete().eq("id", taskId);
+      // ルーティンタスク（template_id付き）はソフトデリートで再生成を防止
+      const isRoutine = prevTask?.template_id != null;
+      const { error } = isRoutine
+        ? await supabase.from("daily_tasks").update({ dismissed: true }).eq("id", taskId)
+        : await supabase.from("daily_tasks").delete().eq("id", taskId);
 
       if (error) {
         console.error("Failed to delete task:", error);

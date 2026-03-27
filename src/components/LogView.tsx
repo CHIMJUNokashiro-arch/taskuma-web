@@ -93,7 +93,10 @@ export default function LogView({ tasks: initialTasks }: { tasks: DailyTask[] })
   const handleDeleteTask = useCallback(async (taskId: string) => {
     const prev = tasks.find((t) => t.id === taskId);
     setTasks((p) => p.filter((t) => t.id !== taskId));
-    const { error } = await supabase.from("daily_tasks").delete().eq("id", taskId);
+    const isRoutine = prev?.template_id != null;
+    const { error } = isRoutine
+      ? await supabase.from("daily_tasks").update({ dismissed: true }).eq("id", taskId)
+      : await supabase.from("daily_tasks").delete().eq("id", taskId);
     if (error && prev) {
       setTasks((p) => [...p, prev]);
     }

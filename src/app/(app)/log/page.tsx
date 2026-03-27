@@ -52,6 +52,7 @@ export default async function LogPage({
       .from("daily_tasks")
       .select("*")
       .gte("date", fromDate)
+      .or("dismissed.is.null,dismissed.eq.false")
       .order("date", { ascending: false })
       .order("sort_order", { ascending: true });
 
@@ -67,6 +68,7 @@ export default async function LogPage({
       .select("*")
       .gte("date", fromDate)
       .lte("date", toDate)
+      .or("dismissed.is.null,dismissed.eq.false")
       .order("date", { ascending: false })
       .order("sort_order", { ascending: true }),
     supabase

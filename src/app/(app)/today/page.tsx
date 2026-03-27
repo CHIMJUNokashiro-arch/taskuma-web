@@ -46,6 +46,7 @@ export default async function TodayPage({
       .from("daily_tasks")
       .select("*")
       .eq("date", dateParam)
+      .or("dismissed.is.null,dismissed.eq.false")
       .order("sort_order", { ascending: true }),
     supabase
       .from("sections")
