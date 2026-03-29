@@ -329,6 +329,56 @@ export default function TaskCard({
               </p>
             )}
           </div>
+          {/* 完了にする（pending / in_progress のみ表示） */}
+          {task.status !== "done" && onUpdate && (
+            <div className="rounded-lg border border-navy-600 bg-navy-900/50 p-2">
+              <label className="mb-1.5 block text-[10px] text-gray-500">完了にする</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  defaultValue={editDate}
+                  id={`complete-date-${task.id}`}
+                  className="w-[120px] rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
+                />
+                <input
+                  type="time"
+                  defaultValue={(() => { const now = new Date(); return `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`; })()}
+                  id={`complete-time-${task.id}`}
+                  className="w-24 rounded-lg border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
+                />
+                <button
+                  onClick={() => {
+                    const dateEl = document.getElementById(`complete-date-${task.id}`) as HTMLInputElement;
+                    const timeEl = document.getElementById(`complete-time-${task.id}`) as HTMLInputElement;
+                    const d = dateEl?.value || editDate;
+                    const t = timeEl?.value || "12:00";
+                    const [h, m] = t.split(":").map(Number);
+
+                    const completedAt = new Date(d + "T00:00:00");
+                    completedAt.setHours(h, m, 0, 0);
+
+                    // 開始時刻がなければ完了の見積もり分前を開始時刻とする
+                    const startedAt = task.started_at
+                      ? new Date(task.started_at)
+                      : new Date(completedAt.getTime() - task.estimated_minutes * 60000);
+
+                    const actualMinutes = Math.max(0, Math.round((completedAt.getTime() - startedAt.getTime()) / 60000));
+
+                    onUpdate(task.id, {
+                      status: "done",
+                      started_at: startedAt.toISOString(),
+                      completed_at: completedAt.toISOString(),
+                      actual_minutes: actualMinutes,
+                    });
+                    setEditing(false);
+                  }}
+                  className="rounded-lg bg-green-accent px-3 py-1 text-xs font-semibold text-navy-950 transition hover:bg-green-accent-dark"
+                >
+                  ✓ 完了
+                </button>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <button
               onClick={handleSave}
