@@ -392,6 +392,14 @@ export default function TaskCard({
             >
               取消
             </button>
+            {task.status === "pending" && (
+              <button
+                onClick={() => { handleSave(); onStart(task.id); }}
+                className="rounded-lg bg-green-accent/10 px-3 py-1 text-xs font-medium text-green-accent transition hover:bg-green-accent/20"
+              >
+                ▶ 開始
+              </button>
+            )}
             {onAddToRoutine && (
               <button
                 onClick={() => { onAddToRoutine(task); setEditing(false); }}
