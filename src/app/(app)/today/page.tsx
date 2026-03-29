@@ -46,7 +46,6 @@ export default async function TodayPage({
       .from("daily_tasks")
       .select("*")
       .eq("date", dateParam)
-      .or("dismissed.is.null,dismissed.eq.false")
       .order("sort_order", { ascending: true }),
     supabase
       .from("sections")
@@ -66,7 +65,7 @@ export default async function TodayPage({
       .order("sort_order", { ascending: true }),
   ]);
 
-  const tasks: DailyTask[] = tasksRes.data ?? [];
+  const tasks: DailyTask[] = (tasksRes.data ?? []).filter((t) => !t.dismissed);
   const sections: Section[] = sectionsRes.data ?? [];
   const weeklyGoals: PeriodicGoal[] = weeklyGoalsRes.data ?? [];
   const monthlyGoals: PeriodicGoal[] = monthlyGoalsRes.data ?? [];

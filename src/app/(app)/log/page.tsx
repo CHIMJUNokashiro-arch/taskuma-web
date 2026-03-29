@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import type { DailyTask } from "@/lib/types";
 import LogView from "@/components/LogView";
 import LogAnalyticsView from "@/components/LogAnalyticsView";
 
@@ -52,11 +53,10 @@ export default async function LogPage({
       .from("daily_tasks")
       .select("*")
       .gte("date", fromDate)
-      .or("dismissed.is.null,dismissed.eq.false")
-      .order("date", { ascending: false })
+            .order("date", { ascending: false })
       .order("sort_order", { ascending: true });
 
-    return <LogView tasks={tasks ?? []} />;
+    return <LogView tasks={(tasks ?? []).filter((t) => !t.dismissed)} />;
   }
 
   // 週別 / 月別 / 年別
@@ -68,8 +68,7 @@ export default async function LogPage({
       .select("*")
       .gte("date", fromDate)
       .lte("date", toDate)
-      .or("dismissed.is.null,dismissed.eq.false")
-      .order("date", { ascending: false })
+            .order("date", { ascending: false })
       .order("sort_order", { ascending: true }),
     supabase
       .from("task_templates")
@@ -81,7 +80,7 @@ export default async function LogPage({
 
   return (
     <LogAnalyticsView
-      tasks={tasksRes.data ?? []}
+      tasks={(tasksRes.data ?? []).filter((t: DailyTask) => !t.dismissed)}
       templates={templatesRes.data ?? []}
       view={view as "weekly" | "monthly" | "yearly"}
       fromDate={fromDate}
