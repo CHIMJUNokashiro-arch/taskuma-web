@@ -176,6 +176,7 @@ export type PeriodicGoal = {
   period_end: string;   // YYYY-MM-DD
   status: "pending" | "done";
   completed_at: string | null;
+  template_id: string | null;
   sort_order: number;
   created_at: string;
 };
