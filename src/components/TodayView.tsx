@@ -592,7 +592,7 @@ export default function TodayView({
       const res = await fetch("/api/google/export-batch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, timezone }),
+        body: JSON.stringify({ date, timezone, days: 7 }),
       });
       const data = await res.json();
       if (res.ok) {

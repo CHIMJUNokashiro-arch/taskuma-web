@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { date, timezone } = await request.json();
+  const { date, timezone, days } = await request.json();
 
   if (!date) {
     return NextResponse.json(
@@ -20,6 +20,14 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  // daysが指定された場合、date含めてN日前までの範囲を対象にする
+  const dateFrom = (() => {
+    if (!days || days <= 1) return date;
+    const d = new Date(date + "T00:00:00");
+    d.setDate(d.getDate() - (days - 1));
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
 
   // Google未接続なら静かに終了
   const { data: tokenRow } = await supabase
@@ -35,14 +43,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // 指定日の完了タスクでgoogle_event_idが未設定のものを取得
+  // 指定日（範囲）の完了タスクでgoogle_event_idが未設定のものを取得
   const { data: tasks } = await supabase
     .from("daily_tasks")
     .select("*")
     .eq("user_id", user.id)
-    .eq("date", date)
+    .gte("date", dateFrom)
+    .lte("date", date)
     .eq("status", "done")
     .is("google_event_id", null)
+    .order("date", { ascending: true })
     .order("sort_order", { ascending: true });
 
   if (!tasks || tasks.length === 0) {
