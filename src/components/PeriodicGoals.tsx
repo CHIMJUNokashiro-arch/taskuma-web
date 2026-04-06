@@ -38,6 +38,7 @@ export default function PeriodicGoals({
   const [monthlyGoals, setMonthlyGoals] = useState<PeriodicGoal[]>(initialMonthlyGoals);
   const [addingType, setAddingType] = useState<PeriodType | null>(null);
   const [newTitle, setNewTitle] = useState("");
+  const [newTargetCount, setNewTargetCount] = useState<number>(1);
   const [weeklyCollapsed, setWeeklyCollapsed] = useState(false);
   const [monthlyCollapsed, setMonthlyCollapsed] = useState(false);
   const composingRef = useRef(false);
@@ -66,6 +67,8 @@ export default function PeriodicGoals({
           period_type: periodType,
           period_start: range.start,
           period_end: range.end,
+          target_count: newTargetCount > 1 ? newTargetCount : null,
+          current_count: 0,
           sort_order: maxSort + 1,
         })
         .select()
@@ -78,6 +81,7 @@ export default function PeriodicGoals({
           setMonthlyGoals((prev) => [...prev, data]);
         }
         setNewTitle("");
+        setNewTargetCount(1);
         setAddingType(null);
       }
     },
@@ -86,20 +90,41 @@ export default function PeriodicGoals({
 
   const handleToggle = useCallback(
     async (goal: PeriodicGoal) => {
-      const newStatus = goal.status === "done" ? "pending" : "done";
-      const completedAt = newStatus === "done" ? new Date().toISOString() : null;
       const setter = goal.period_type === "weekly" ? setWeeklyGoals : setMonthlyGoals;
+      const tc = goal.target_count ?? 1;
+      const cc = goal.current_count ?? 0;
 
-      setter((prev) =>
-        prev.map((g) =>
-          g.id === goal.id ? { ...g, status: newStatus, completed_at: completedAt } : g
-        )
-      );
-
-      await supabase
-        .from("periodic_goals")
-        .update({ status: newStatus, completed_at: completedAt })
-        .eq("id", goal.id);
+      if (goal.status === "done") {
+        // 完了 → 未完了に戻す（回数もリセット）
+        setter((prev) =>
+          prev.map((g) =>
+            g.id === goal.id ? { ...g, status: "pending", completed_at: null, current_count: Math.max(0, cc - 1) } : g
+          )
+        );
+        await supabase
+          .from("periodic_goals")
+          .update({ status: "pending", completed_at: null, current_count: Math.max(0, cc - 1) })
+          .eq("id", goal.id);
+      } else {
+        // カウントアップ
+        const newCount = cc + 1;
+        const isDone = newCount >= tc;
+        setter((prev) =>
+          prev.map((g) =>
+            g.id === goal.id
+              ? { ...g, current_count: newCount, status: isDone ? "done" : "pending", completed_at: isDone ? new Date().toISOString() : null }
+              : g
+          )
+        );
+        await supabase
+          .from("periodic_goals")
+          .update({
+            current_count: newCount,
+            status: isDone ? "done" : "pending",
+            completed_at: isDone ? new Date().toISOString() : null,
+          })
+          .eq("id", goal.id);
+      }
     },
     [supabase]
   );
@@ -183,14 +208,18 @@ export default function PeriodicGoals({
                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
                     goal.status === "done"
                       ? "border-green-accent bg-green-accent text-navy-950"
-                      : "border-navy-500 hover:border-green-accent"
+                      : (goal.current_count ?? 0) > 0
+                        ? "border-green-accent/50 bg-green-accent/10"
+                        : "border-navy-500 hover:border-green-accent"
                   }`}
                 >
-                  {goal.status === "done" && (
+                  {goal.status === "done" ? (
                     <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
-                  )}
+                  ) : (goal.current_count ?? 0) > 0 ? (
+                    <span className="text-[9px] font-bold text-green-accent">{goal.current_count}</span>
+                  ) : null}
                 </button>
                 <span
                   className={`flex-1 text-sm ${
@@ -199,6 +228,11 @@ export default function PeriodicGoals({
                 >
                   {goal.title}
                 </span>
+                {(goal.target_count ?? 0) > 1 && (
+                  <span className={`text-[10px] ${goal.status === "done" ? "text-green-accent" : "text-gray-500"}`}>
+                    {goal.current_count ?? 0}/{goal.target_count}
+                  </span>
+                )}
                 <button
                   onClick={() => handleDelete(goal)}
                   className="hidden text-gray-600 transition hover:text-red-400 group-hover:block"
@@ -212,7 +246,8 @@ export default function PeriodicGoals({
 
             {/* 追加フォーム */}
             {addingType === periodType && (
-              <div className="mt-1 flex gap-2">
+              <div className="mt-1 space-y-2">
+                <div className="flex gap-2">
                 <input
                   type="text"
                   value={newTitle}
@@ -224,7 +259,7 @@ export default function PeriodicGoals({
                   onKeyDown={(e) => {
                     if (composingRef.current || e.nativeEvent.isComposing) return;
                     if (e.key === "Enter") handleAdd(periodType);
-                    if (e.key === "Escape") { setAddingType(null); setNewTitle(""); }
+                    if (e.key === "Escape") { setAddingType(null); setNewTitle(""); setNewTargetCount(1); }
                   }}
                   className="flex-1 rounded-lg border border-navy-600 bg-navy-900 px-3 py-1.5 text-sm text-white placeholder-gray-600 focus:border-green-accent focus:outline-none"
                 />
@@ -234,6 +269,18 @@ export default function PeriodicGoals({
                 >
                   追加
                 </button>
+                </div>
+                <div className="flex items-center gap-2 px-1">
+                  <label className="text-[10px] text-gray-500">目標回数</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={newTargetCount}
+                    onChange={(e) => setNewTargetCount(Math.max(1, Number(e.target.value)))}
+                    className="w-16 rounded border border-navy-600 bg-navy-900 px-2 py-1 text-xs text-white focus:border-green-accent focus:outline-none"
+                  />
+                  <span className="text-[10px] text-gray-500">回（1回なら1回チェックで完了）</span>
+                </div>
               </div>
             )}
           </div>

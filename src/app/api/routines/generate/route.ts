@@ -172,6 +172,45 @@ export async function POST(request: Request) {
     }
   }
 
+  // ===== 前日の未完了タスクを当日に引き継ぎ =====
+  const prevDate = (() => {
+    const d = new Date(targetDate + "T00:00:00");
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+
+  // 前日の未完了・未dismissedタスク（ルーティン以外）を取得
+  const { data: carryOverTasks } = await supabase
+    .from("daily_tasks")
+    .select("*")
+    .eq("date", prevDate)
+    .eq("user_id", user.id)
+    .neq("status", "done")
+    .or("dismissed.is.null,dismissed.eq.false")
+    .is("template_id", null);
+
+  if (carryOverTasks && carryOverTasks.length > 0) {
+    // 当日に同タイトルのタスクが既にあるかチェック
+    const { data: todayTasks } = await supabase
+      .from("daily_tasks")
+      .select("title")
+      .eq("date", targetDate)
+      .eq("user_id", user.id);
+
+    const todayTitles = new Set(todayTasks?.map((t) => t.title) ?? []);
+
+    for (const task of carryOverTasks) {
+      if (todayTitles.has(task.title)) continue;
+
+      // 前日タスクの日付を当日に移動
+      await supabase
+        .from("daily_tasks")
+        .update({ date: targetDate })
+        .eq("id", task.id);
+      generatedCount++;
+    }
+  }
+
   return NextResponse.json({
     message: `Generated ${generatedCount} routine tasks/goals`,
     count: generatedCount,

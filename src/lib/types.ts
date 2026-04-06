@@ -177,6 +177,8 @@ export type PeriodicGoal = {
   status: "pending" | "done";
   completed_at: string | null;
   template_id: string | null;
+  target_count: number | null; // 目標回数（nullなら1回チェックで完了）
+  current_count: number;       // 現在の達成回数
   sort_order: number;
   created_at: string;
 };
