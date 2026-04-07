@@ -20,6 +20,7 @@ export default function TaskCard({
   onAddToRoutine,
   onRevert,
   sections,
+  viewDate,
 }: {
   task: DailyTask;
   onStart: (id: string) => void;
@@ -29,6 +30,7 @@ export default function TaskCard({
   onAddToRoutine?: (task: DailyTask) => void;
   onRevert?: (id: string) => void;
   sections?: Section[];
+  viewDate?: string;
 }) {
   const [elapsed, setElapsed] = useState(0);
   const [editing, setEditing] = useState(false);
@@ -486,6 +488,21 @@ export default function TaskCard({
                 {formatTimer(elapsed)}
               </span>
             )}
+            {(() => {
+              const originDate = task.created_at?.split("T")[0];
+              const currentDate = viewDate || task.date;
+              if (!originDate || originDate >= currentDate) return null;
+              const diffDays = Math.round(
+                (new Date(currentDate + "T00:00:00").getTime() - new Date(originDate + "T00:00:00").getTime()) / 86400000
+              );
+              if (diffDays <= 0) return null;
+              const originLabel = `${new Date(originDate + "T00:00:00").getMonth() + 1}/${new Date(originDate + "T00:00:00").getDate()}`;
+              return (
+                <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-[10px] text-yellow-400">
+                  {originLabel}から · {diffDays}日経過
+                </span>
+              );
+            })()}
           </div>
         </div>
 

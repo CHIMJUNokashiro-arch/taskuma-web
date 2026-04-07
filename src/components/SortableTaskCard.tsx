@@ -14,6 +14,7 @@ export default function SortableTaskCard({
   onAddToRoutine,
   onRevert,
   sections,
+  viewDate,
 }: {
   task: DailyTask;
   onStart: (id: string) => void;
@@ -23,6 +24,7 @@ export default function SortableTaskCard({
   onAddToRoutine?: (task: DailyTask) => void;
   onRevert?: (id: string) => void;
   sections?: Section[];
+  viewDate?: string;
 }) {
   const {
     attributes,
@@ -66,6 +68,7 @@ export default function SortableTaskCard({
           onAddToRoutine={onAddToRoutine}
           onRevert={onRevert}
           sections={sections}
+          viewDate={viewDate}
         />
       </div>
     </div>

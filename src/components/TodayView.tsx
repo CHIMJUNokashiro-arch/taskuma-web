@@ -796,6 +796,7 @@ export default function TodayView({
                         onAddToRoutine={handleAddToRoutine}
                         onRevert={handleRevertTask}
                         sections={sections}
+                        viewDate={date}
                       />
                     ))}
                   </div>
@@ -814,6 +815,7 @@ export default function TodayView({
                       onAddToRoutine={handleAddToRoutine}
                       onRevert={handleRevertTask}
                       sections={sections}
+                      viewDate={date}
                     />
                   ))}
                 </div>
