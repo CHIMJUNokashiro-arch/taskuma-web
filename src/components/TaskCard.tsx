@@ -402,6 +402,18 @@ export default function TaskCard({
                 ▶ 開始
               </button>
             )}
+            {task.status === "in_progress" && onUpdate && (
+              <button
+                onClick={() => {
+                  onUpdate(task.id, { status: "pending", started_at: null });
+                  setEditing(false);
+                }}
+                className="rounded-lg border border-yellow-500/30 px-3 py-1 text-xs text-yellow-400 transition hover:bg-yellow-500/10"
+                title="未着手に戻す"
+              >
+                ◀ 未着手に戻す
+              </button>
+            )}
             {onAddToRoutine && (
               <button
                 onClick={() => { onAddToRoutine(task); setEditing(false); }}
