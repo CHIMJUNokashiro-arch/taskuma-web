@@ -19,6 +19,7 @@ export default function TaskCard({
   onUpdate,
   onAddToRoutine,
   onRevert,
+  onDuplicate,
   sections,
   viewDate,
 }: {
@@ -29,6 +30,7 @@ export default function TaskCard({
   onUpdate?: (id: string, updates: Partial<DailyTask>) => void;
   onAddToRoutine?: (task: DailyTask) => void;
   onRevert?: (id: string) => void;
+  onDuplicate?: (task: DailyTask) => void;
   sections?: Section[];
   viewDate?: string;
 }) {
@@ -414,10 +416,19 @@ export default function TaskCard({
                 ◀ 未着手に戻す
               </button>
             )}
+            {onDuplicate && (
+              <button
+                onClick={() => { onDuplicate(task); setEditing(false); }}
+                className="ml-auto rounded-lg border border-purple-500/30 px-3 py-1 text-xs text-purple-300 transition hover:bg-purple-500/10"
+                title="このタスクを複製"
+              >
+                ⎘ 複製
+              </button>
+            )}
             {onAddToRoutine && (
               <button
                 onClick={() => { onAddToRoutine(task); setEditing(false); }}
-                className="ml-auto rounded-lg border border-sky-500/30 px-3 py-1 text-xs text-sky-400 transition hover:bg-sky-500/10"
+                className={`${onDuplicate ? "" : "ml-auto"} rounded-lg border border-sky-500/30 px-3 py-1 text-xs text-sky-400 transition hover:bg-sky-500/10`}
                 title="ルーティンに追加"
               >
                 ルーティン登録

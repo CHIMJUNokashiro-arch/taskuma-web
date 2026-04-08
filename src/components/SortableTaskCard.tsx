@@ -13,6 +13,7 @@ export default function SortableTaskCard({
   onUpdate,
   onAddToRoutine,
   onRevert,
+  onDuplicate,
   sections,
   viewDate,
 }: {
@@ -23,6 +24,7 @@ export default function SortableTaskCard({
   onUpdate?: (id: string, updates: Partial<DailyTask>) => void;
   onAddToRoutine?: (task: DailyTask) => void;
   onRevert?: (id: string) => void;
+  onDuplicate?: (task: DailyTask) => void;
   sections?: Section[];
   viewDate?: string;
 }) {
@@ -67,6 +69,7 @@ export default function SortableTaskCard({
           onUpdate={onUpdate}
           onAddToRoutine={onAddToRoutine}
           onRevert={onRevert}
+          onDuplicate={onDuplicate}
           sections={sections}
           viewDate={viewDate}
         />

@@ -445,6 +445,44 @@ export default function TodayView({
     [supabase, tasks]
   );
 
+  const handleDuplicateTask = useCallback(
+    async (task: DailyTask) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const maxSort = tasks.reduce(
+        (max, t) => Math.max(max, t.sort_order ?? 0),
+        0
+      );
+
+      const { data } = await supabase
+        .from("daily_tasks")
+        .insert({
+          user_id: user.id,
+          template_id: null, // 複製はルーティン紐付けを外す
+          section_id: task.section_id,
+          date: date, // 表示中の日付に複製
+          title: task.title,
+          estimated_minutes: task.estimated_minutes,
+          eisenhower_quadrant: task.eisenhower_quadrant,
+          time_block: task.time_block,
+          scheduled_start: task.scheduled_start,
+          scheduled_end: task.scheduled_end,
+          sort_order: maxSort + 1,
+          status: "pending",
+        })
+        .select()
+        .single();
+
+      if (data && date === date) {
+        setTasks((prev) => [...prev, data]);
+      }
+    },
+    [supabase, tasks, date]
+  );
+
   const handleAddToRoutine = useCallback(
     async (task: DailyTask) => {
       const {
@@ -814,6 +852,7 @@ export default function TodayView({
                         onUpdate={handleUpdateTask}
                         onAddToRoutine={handleAddToRoutine}
                         onRevert={handleRevertTask}
+                        onDuplicate={handleDuplicateTask}
                         sections={sections}
                         viewDate={date}
                       />
@@ -833,6 +872,7 @@ export default function TodayView({
                       onUpdate={handleUpdateTask}
                       onAddToRoutine={handleAddToRoutine}
                       onRevert={handleRevertTask}
+                      onDuplicate={handleDuplicateTask}
                       sections={sections}
                       viewDate={date}
                     />
