@@ -56,6 +56,7 @@ export default function TodayView({
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [googleConnected, setGoogleConnected] = useState(false);
+  const [googleTokenInvalid, setGoogleTokenInvalid] = useState(false);
   const [routineMessage, setRoutineMessage] = useState<string | null>(null);
   const [timelineStartTime, setTimelineStartTime] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -67,7 +68,11 @@ export default function TodayView({
     setMounted(true);
     fetch("/api/google/status")
       .then((res) => res.json())
-      .then((data) => setGoogleConnected(data.connected))
+      .then((data) => {
+        setGoogleConnected(data.connected);
+        // 接続済みだがトークンが無効な場合は警告
+        setGoogleTokenInvalid(data.connected && data.valid === false);
+      })
       .catch(() => {});
   }, []);
 
@@ -719,6 +724,20 @@ export default function TodayView({
             </div>
           </div>
         </div>
+        {googleTokenInvalid && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            <div className="flex items-center gap-2">
+              <span>⚠️</span>
+              <span>Googleカレンダーの連携が切れています。タスクのエクスポート・インポートができません。</span>
+            </div>
+            <a
+              href="/settings"
+              className="shrink-0 rounded-md border border-red-400/50 px-3 py-1 text-xs font-medium text-red-200 transition hover:bg-red-500/20"
+            >
+              設定で再接続
+            </a>
+          </div>
+        )}
         {importMessage && (
           <div className="mb-4 rounded-lg bg-green-accent/10 px-4 py-2 text-sm text-green-accent">
             {importMessage}

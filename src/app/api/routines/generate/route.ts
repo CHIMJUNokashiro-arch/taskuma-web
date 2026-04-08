@@ -179,15 +179,17 @@ export async function POST(request: Request) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   })();
 
-  // 前日の未完了・未dismissedタスク（ルーティン以外）を取得
-  const { data: carryOverTasks } = await supabase
+  // 前日のpendingタスク（ルーティン以外）のみ引き継ぎ
+  // in_progressは元の日付に残す（作業中のタスクを移動すると混乱するため）
+  const { data: carryOverRaw } = await supabase
     .from("daily_tasks")
     .select("*")
     .eq("date", prevDate)
     .eq("user_id", user.id)
-    .neq("status", "done")
-    .or("dismissed.is.null,dismissed.eq.false")
+    .eq("status", "pending")
     .is("template_id", null);
+
+  const carryOverTasks = (carryOverRaw ?? []).filter((t) => !t.dismissed);
 
   if (carryOverTasks && carryOverTasks.length > 0) {
     // 当日に同タイトルのタスクが既にあるかチェック
