@@ -69,8 +69,8 @@ export default function TodayView({
     fetch("/api/google/status")
       .then((res) => res.json())
       .then((data) => {
-        setGoogleConnected(data.connected);
-        // 接続済みだがトークンが無効な場合は警告
+        setGoogleConnected(data.connected && data.valid !== false);
+        // トークンがDBにあるが無効、またはAPIが使えない場合に警告
         setGoogleTokenInvalid(data.connected && data.valid === false);
       })
       .catch(() => {});
