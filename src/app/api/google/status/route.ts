@@ -22,7 +22,7 @@ export async function GET() {
     return NextResponse.json({ connected: false, email: null, valid: false });
   }
 
-  // トークンの有効性を実際のAPI呼び出しで検証
+  // トークンの有効性を検証
   let valid = true;
   try {
     const oauth2Client = new google.auth.OAuth2(
@@ -36,28 +36,29 @@ export async function GET() {
       expiry_date: new Date(token.token_expires_at).getTime(),
     });
 
-    // トークンリフレッシュコールバック
-    oauth2Client.on("tokens", async (tokens) => {
-      const updates: Record<string, string> = {
-        updated_at: new Date().toISOString(),
-      };
-      if (tokens.access_token) updates.access_token = tokens.access_token;
-      if (tokens.expiry_date)
-        updates.token_expires_at = new Date(tokens.expiry_date).toISOString();
-      if (tokens.refresh_token) updates.refresh_token = tokens.refresh_token;
-      await supabase
-        .from("google_tokens")
-        .update(updates)
-        .eq("user_id", user.id);
-    });
+    // リフレッシュを試みてトークンが有効かチェック
+    // (getAccessToken はトークンが有効ならそのまま返し、期限切れならリフレッシュする)
+    const { token: accessToken } = await oauth2Client.getAccessToken();
 
-    // calendar.events スコープで確実に動く検証（primaryカレンダーの直近イベント1件取得）
-    const calendar = google.calendar({ version: "v3", auth: oauth2Client });
-    await calendar.events.list({
-      calendarId: "primary",
-      maxResults: 1,
-      timeMin: new Date().toISOString(),
-    });
+    if (accessToken) {
+      // リフレッシュされた場合はDBを更新
+      const creds = oauth2Client.credentials;
+      if (creds.access_token !== token.access_token) {
+        await supabase
+          .from("google_tokens")
+          .update({
+            access_token: creds.access_token!,
+            token_expires_at: creds.expiry_date
+              ? new Date(creds.expiry_date).toISOString()
+              : token.token_expires_at,
+            ...(creds.refresh_token ? { refresh_token: creds.refresh_token } : {}),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", user.id);
+      }
+    } else {
+      valid = false;
+    }
   } catch (e) {
     console.warn("Google token validation failed:", e);
     valid = false;
