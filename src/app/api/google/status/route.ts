@@ -36,7 +36,7 @@ export async function GET() {
       expiry_date: new Date(token.token_expires_at).getTime(),
     });
 
-    // トークンリフレッシュのコールバック
+    // トークンリフレッシュコールバック
     oauth2Client.on("tokens", async (tokens) => {
       const updates: Record<string, string> = {
         updated_at: new Date().toISOString(),
@@ -51,9 +51,13 @@ export async function GET() {
         .eq("user_id", user.id);
     });
 
-    // 実際にGoogle Calendar APIを叩いて検証（軽量なリスト取得）
+    // calendar.events スコープで確実に動く検証（primaryカレンダーの直近イベント1件取得）
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
-    await calendar.calendarList.list({ maxResults: 1 });
+    await calendar.events.list({
+      calendarId: "primary",
+      maxResults: 1,
+      timeMin: new Date().toISOString(),
+    });
   } catch (e) {
     console.warn("Google token validation failed:", e);
     valid = false;

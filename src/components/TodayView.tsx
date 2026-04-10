@@ -76,21 +76,44 @@ export default function TodayView({
       .catch(() => {});
   }, []);
 
-  // ルーティンタスク自動生成（日付ごとに1回）
+  // ルーティンタスク自動生成 + Googleカレンダー自動取込（日付ごとに1回）
   useEffect(() => {
-    fetch("/api/routines/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.count > 0) {
-          // 新しいルーティンが生成された場合、ページをリフレッシュして取得
-          router.refresh();
+    let needsRefresh = false;
+
+    const run = async () => {
+      // 1. ルーティン生成
+      try {
+        const res = await fetch("/api/routines/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date }),
+        });
+        const data = await res.json();
+        if (data.count > 0) needsRefresh = true;
+      } catch {}
+
+      // 2. Googleカレンダー自動取込（接続済み & 有効な場合のみ）
+      try {
+        const statusRes = await fetch("/api/google/status");
+        const status = await statusRes.json();
+        if (status.connected && status.valid !== false) {
+          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          const importRes = await fetch("/api/google/import", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ date, timezone }),
+          });
+          const importData = await importRes.json();
+          if (importData.imported > 0) needsRefresh = true;
         }
-      })
-      .catch(() => {});
+      } catch {}
+
+      if (needsRefresh) {
+        router.refresh();
+      }
+    };
+
+    run();
   }, [date, router]);
 
   // ローカル日付ヘルパー
