@@ -187,38 +187,45 @@ export async function POST(request: Request) {
   })();
 
   // 前日のpendingタスク（ルーティン以外）のみ引き継ぎ
-  // in_progressは元の日付に残す（作業中のタスクを移動すると混乱するため）
-  const { data: carryOverRaw } = isViewingToday
-    ? await supabase
-        .from("daily_tasks")
-        .select("*")
-        .eq("date", prevDate)
-        .eq("user_id", user.id)
-        .eq("status", "pending")
-        .is("template_id", null)
-    : { data: [] };
-
-  const carryOverTasks = (carryOverRaw ?? []).filter((t) => !t.dismissed);
-
-  if (isViewingToday && carryOverTasks && carryOverTasks.length > 0) {
-    // 当日に同タイトルのタスクが既にあるかチェック
-    const { data: todayTasks } = await supabase
+  if (isViewingToday) {
+    const { data: carryOverRaw } = await supabase
       .from("daily_tasks")
-      .select("title")
-      .eq("date", targetDate)
-      .eq("user_id", user.id);
+      .select("*")
+      .eq("date", prevDate)
+      .eq("user_id", user.id)
+      .eq("status", "pending")
+      .is("template_id", null);
 
-    const todayTitles = new Set(todayTasks?.map((t) => t.title) ?? []);
+    const carryOverTasks = (carryOverRaw ?? []).filter((t) => {
+      if (t.dismissed) return false;
+      // [週次] [月次] プレフィックスは引き継がない（periodic_goalsで管理）
+      if (t.title?.startsWith("[週次]") || t.title?.startsWith("[月次]")) return false;
+      // 作成から3日以上経過したタスクは引き継がない
+      if (t.created_at) {
+        const created = new Date(t.created_at).getTime();
+        const now = Date.now();
+        if (now - created > 3 * 24 * 60 * 60 * 1000) return false;
+      }
+      return true;
+    });
 
-    for (const task of carryOverTasks) {
-      if (todayTitles.has(task.title)) continue;
-
-      // 前日タスクの日付を当日に移動
-      await supabase
+    if (carryOverTasks.length > 0) {
+      const { data: todayTasks } = await supabase
         .from("daily_tasks")
-        .update({ date: targetDate })
-        .eq("id", task.id);
-      generatedCount++;
+        .select("title")
+        .eq("date", targetDate)
+        .eq("user_id", user.id);
+
+      const todayTitles = new Set(todayTasks?.map((t) => t.title) ?? []);
+
+      for (const task of carryOverTasks) {
+        if (todayTitles.has(task.title)) continue;
+        await supabase
+          .from("daily_tasks")
+          .update({ date: targetDate })
+          .eq("id", task.id);
+        generatedCount++;
+      }
     }
   }
 
