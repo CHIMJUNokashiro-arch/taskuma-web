@@ -90,26 +90,48 @@ export default function TodayView({
         });
         const data = await res.json();
         if (data.count > 0) needsRefresh = true;
-      } catch {}
+      } catch (e) {
+        console.warn("Routine generation failed:", e);
+      }
 
       // 2. Googleカレンダー自動取込（接続済み & 有効な場合のみ）
       try {
         const statusRes = await fetch("/api/google/status");
         const status = await statusRes.json();
-        if (status.connected && status.valid !== false) {
-          const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-          const importRes = await fetch("/api/google/import", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ date, timezone }),
-          });
-          const importData = await importRes.json();
-          if (importData.imported > 0) needsRefresh = true;
-        }
-      } catch {}
+        console.log("[Auto-import] Google status:", status);
 
-      if (needsRefresh) {
-        router.refresh();
+        if (!status.connected) {
+          console.log("[Auto-import] Skipped: Google not connected");
+          return;
+        }
+        if (status.valid === false) {
+          console.log("[Auto-import] Skipped: Google token invalid");
+          return;
+        }
+
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const importRes = await fetch("/api/google/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date, timezone }),
+        });
+        const importData = await importRes.json();
+        console.log("[Auto-import] Import result:", importData);
+
+        if (!importRes.ok) {
+          setImportMessage(`⚠️ カレンダー取込失敗: ${importData.error ?? "不明なエラー"}`);
+          setTimeout(() => setImportMessage(null), 6000);
+        } else if (importData.imported > 0) {
+          needsRefresh = true;
+          setImportMessage(`📅 カレンダーから${importData.imported}件を取込`);
+          setTimeout(() => setImportMessage(null), 4000);
+        }
+      } catch (e) {
+        console.warn("[Auto-import] Error:", e);
+      } finally {
+        if (needsRefresh) {
+          router.refresh();
+        }
       }
     };
 
