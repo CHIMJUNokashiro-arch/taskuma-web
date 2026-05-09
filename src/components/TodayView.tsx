@@ -707,15 +707,23 @@ export default function TodayView({
     });
   };
 
-  // セクションごとにタスクをグループ化
+  // 進行中タスクはセクション横断でページ最上位に固定表示する
+  const inProgressTasks: DailyTask[] = [];
   const tasksBySection = new Map<string | null, DailyTask[]>();
   tasks.forEach((task) => {
+    if (task.status === "in_progress") {
+      inProgressTasks.push(task);
+      return;
+    }
     const key = task.section_id;
     if (!tasksBySection.has(key)) {
       tasksBySection.set(key, []);
     }
     tasksBySection.get(key)!.push(task);
   });
+  inProgressTasks.sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+  );
 
   const sectionOrder = [...sections, null]; // nullは「未分類」
 
@@ -843,6 +851,41 @@ export default function TodayView({
           initialMonthlyGoals={initialMonthlyGoals}
           date={date}
         />
+
+        {/* 進行中タスク（セクション横断で最上位に固定） */}
+        {inProgressTasks.length > 0 && (
+          <div className="mb-6">
+            <div className="mb-3 flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-accent opacity-60"></span>
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-green-accent"></span>
+              </span>
+              <span className="text-sm font-semibold text-green-accent">
+                進行中
+              </span>
+              <span className="text-xs text-gray-500">
+                ({inProgressTasks.length})
+              </span>
+            </div>
+            <div className="space-y-2">
+              {inProgressTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  onStart={handleStartTask}
+                  onComplete={handleCompleteTask}
+                  onDelete={handleDeleteTask}
+                  onUpdate={handleUpdateTask}
+                  onAddToRoutine={handleAddToRoutine}
+                  onRevert={handleRevertTask}
+                  onDuplicate={handleDuplicateTask}
+                  sections={sections}
+                  viewDate={date}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* タスクタイムライン */}
         {sectionOrder.map((section) => {
